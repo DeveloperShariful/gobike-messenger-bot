@@ -1,158 +1,182 @@
 # GoBike Messenger + Instagram Auto-Reply Bot
 
 এই বট আপনার GoBike Facebook Page Messenger আর Instagram DM-এর customer মেসেজ পড়ে,
-Claude AI দিয়ে reply বানায় (gobike.au থেকে নেওয়া product/policy তথ্য ব্যবহার করে,
-Australian English-এ), আর দরকার হলে আপনার PostgreSQL ডাটাবেস থেকে order status
-লুকআপ করে। কমপ্লেক্স/সেনসিটিভ কেসে (রাগান্বিত customer, warranty claim, ইত্যাদি)
-স্বয়ংক্রিয়ভাবে human handoff-এর জন্য নোট রেখে দেয়।
+Claude AI দিয়ে মানুষের মতো reply বানায়। Product, দাম, stock — এসব তথ্য **live আসে
+আপনার my-shop স্টোর থেকে** (gobike.au), তাই কখনো পুরনো হয় না। Order status জিজ্ঞেস
+করলে স্টোরের API থেকে লুকআপ করে (order number + সেই order-এর email মিললে তবেই details
+দেয়)। রাগান্বিত customer / warranty claim / payment issue হলে স্বয়ংক্রিয়ভাবে human
+handoff-এর জন্য নোট রেখে দেয়।
 
-কোড টেস্ট করা হয়েছে (syntax + boot + webhook verify + error-handling flow) —
-কিন্তু আপনার নিজের Meta App, database আর Anthropic key দিয়ে end-to-end টেস্ট
-করাটা must, deploy করার আগে।
+সাথে আছে একটা **password-protected dashboard** (`/dashboard`) — handoff queue,
+সব conversation log, bot চালু/বন্ধ toggle, আর extra knowledge যোগ করার জায়গা।
 
 ---
 
-## ধাপ ১ — Meta Developer App বানানো (যেহেতু এখনো বানানো হয়নি)
+## দুই রিপো, দুই জায়গা
 
-1. https://developers.facebook.com/apps এ যান, "Create App" চাপুন।
-2. App type হিসেবে **"Business"** বেছে নিন।
-3. App বানানোর পর Dashboard-এ **"Messenger"** product যোগ করুন (Add Product থেকে)।
-4. **Messenger → Settings** এ গিয়ে:
+| রিপো | কী | কোথায় deploy |
+|---|---|---|
+| `gobike-messenger-bot` (এটা) | বট + dashboard | Render |
+| `my-shop` | স্টোর — এখানে `/api/bot/*` read-only API যোগ করা হয়েছে | Vercel (gobike.au) |
+
+বট HTTPS দিয়ে `https://gobike.au/api/bot/*` কল করে, একটা shared secret (`BOT_API_KEY`)
+দিয়ে। দুই রিপোতে **একই** `BOT_API_KEY` বসাতে হবে।
+
+---
+
+## ধাপ ১ — Meta Developer App বানানো
+
+1. https://developers.facebook.com/apps এ যান, "Create App" → type **"Business"**।
+2. Dashboard-এ **"Messenger"** product যোগ করুন।
+3. **Messenger → Settings**:
    - "Access Tokens" সেকশনে আপনার GoBike Facebook Page যোগ করে একটা
-     **Page Access Token** জেনারেট করুন। এটাই `META_PAGE_ACCESS_TOKEN`।
-   - এই একই টোকেন Messenger আর Instagram DM দুটোর জন্যই কাজ করবে, যদি আপনার
-     Instagram professional/business account সেই Facebook Page-এর সাথে link
-     করা থাকে (Meta Business Suite থেকে link করা যায়, না থাকলে আগে সেটা করুন)।
-5. **App Settings → Basic** পেজ থেকে **App Secret** কপি করুন — এটা
-   `META_APP_SECRET`।
-6. একটা random string নিজে বানান (যেমন `gobike_wh_9f8x...`) — এটা
-   `META_VERIFY_TOKEN`, যেটা এই .env ফাইলে আর একটু পরে Meta-র dashboard-এ,
-   দুই জায়গাতেই বসাতে হবে।
+     **Page Access Token** জেনারেট করুন → এটাই `META_PAGE_ACCESS_TOKEN`।
+   - এই একই টোকেন Messenger আর Instagram DM দুটোর জন্যই কাজ করে, যদি Instagram
+     professional account সেই Page-এর সাথে link করা থাকে।
+4. **App Settings → Basic** → **App Secret** কপি করুন → `META_APP_SECRET`।
+5. নিজে একটা random string বানান (যেমন `gobike_wh_9f8x...`) → `META_VERIFY_TOKEN`।
+   এটা `.env` আর Meta dashboard — দুই জায়গায় বসাতে হবে।
 
 ### Webhook যুক্ত করা (deploy করার পর)
-বট deploy হয়ে যাওয়ার পর (ধাপ ৪ দেখুন) আপনি একটা public URL পাবেন, যেমন
-`https://your-app.up.railway.app`। তখন:
+1. Meta Dashboard → **Messenger → Settings → Webhooks** → "Add Callback URL"।
+2. Callback URL: `https://gobike-messenger-bot.onrender.com/webhook`
+3. Verify Token: আপনার `META_VERIFY_TOKEN`।
+4. Subscribe: `messages`, `messaging_postbacks`।
+5. Instagram-এর জন্যও `messages` field-এ subscribe করুন।
 
-1. Meta Dashboard → **Messenger → Settings → Webhooks** এ "Add Callback URL"
-   চাপুন।
-2. Callback URL: `https://your-app.up.railway.app/webhook`
-3. Verify Token: আপনার বানানো `META_VERIFY_TOKEN` (ধাপ ৬ এ যেটা বানিয়েছেন)।
-4. Subscribe করুন এই fields-এ: `messages`, `messaging_postbacks`।
-5. একই webhook Instagram-এর জন্যও subscribe করুন (Dashboard এ Instagram
-   product যোগ করে, বা Messenger settings-এর মধ্যেই Instagram account যুক্ত
-   করার অপশন থাকবে) — field: `messages`।
-
-### App Review নিয়ে একটা জরুরি কথা
-আপনি নিজে App-এর Admin/Developer/Tester হিসেবে যতক্ষণ যুক্ত থাকবেন, ততক্ষণ
-নিজের Page/Instagram-এর সাথে বট টেস্ট করতে **App Review লাগবে না** — Development
-mode-এই কাজ করবে। কিন্তু পুরোপুরি সব customer-এর জন্য public ভাবে চালু করতে
-চাইলে (App Live mode-এ নিতে), Meta-তে **App Review** সাবমিট করে
-`pages_messaging` আর `instagram_manage_messages` permission approve করাতে
-হবে, আর সাথে Business Verification। এটা করতে কয়েকদিন লাগতে পারে — তাই আগে
-নিজের Page দিয়ে টেস্ট করে নিশ্চিত হয়ে নিন, তারপর Review-এর জন্য সাবমিট করুন।
+### App Review
+নিজের Page/Instagram দিয়ে টেস্ট করতে **App Review লাগে না** (Development mode)। সব
+customer-এর জন্য public চালু করতে `pages_messaging` +
+`instagram_manage_messages` permission-এর জন্য App Review + Business Verification
+সাবমিট করতে হবে (কয়েকদিন লাগে)।
 
 ---
 
-## ধাপ ২ — Claude API (আপনার আগে থেকে আছে)
+## ধাপ ২ — Claude API
 
-`.env` ফাইলে আপনার `ANTHROPIC_API_KEY` বসান (console.anthropic.com থেকে)।
+`.env`-এ `ANTHROPIC_API_KEY` বসান (console.anthropic.com থেকে)।
 
-`CLAUDE_MODEL` এ কোন model ব্যবহার হচ্ছে সেটা `.env.example`-এ একটা ডিফল্ট
-বসানো আছে, কিন্তু deploy করার আগে
-https://docs.claude.com/en/docs/about-claude/models চেক করে নিশ্চিত হয়ে নিন
-এটাই বর্তমান সময়ের সঠিক/সাপোর্টেড model ID কিনা — model list সময়ের সাথে
-বদলায়।
+`CLAUDE_MODEL` ডিফল্ট `claude-sonnet-5` — support chat-এর জন্য দ্রুত/সাশ্রয়ী। সবচেয়ে
+শক্তিশালী reply চাইলে `claude-opus-5` দিন (খরচ বেশি)। Deploy-এর আগে
+https://docs.claude.com/en/docs/about-claude/models চেক করে নিশ্চিত হয়ে নিন model ID
+বর্তমানে সঠিক কিনা।
+
+Knowledge base বড় (পুরো product catalog) — তাই system prompt **prompt-cache** করা
+আছে, ব্যস্ত page-এ এটা API খরচ অনেক কমায়।
 
 ---
 
-## ধাপ ৩ — PostgreSQL সেটাপ
+## ধাপ ৩ — my-shop স্টোরে bot API চালু করা
 
-আপনার existing PostgreSQL database-এর connection string `.env`-এ
-`DATABASE_URL` এ বসান।
+my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা read-only endpoint যোগ করা হয়েছে:
+`catalog` (products/দাম/stock), `order` (status lookup), `policies` (contact/config)।
+সবগুলো `x-api-key` header দিয়ে protected।
 
-তারপর একবার এই কমান্ড চালান, যেটা বট নিজের conversation-history আর
-handoff-log টেবিল বানাবে (আপনার আসল order টেবিলে কোনো পরিবর্তন করবে না):
+**করণীয়:**
+1. একটা লম্বা random string বানান — এটাই `BOT_API_KEY`।
+   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+2. my-shop-এর Vercel project settings → Environment Variables → `BOT_API_KEY` বসান।
+   (লোকালি টেস্ট করতে my-shop-এর `.env`-এও বসান — সেটা করা আছে।)
+3. my-shop redeploy করুন।
+4. যাচাই: `curl https://gobike.au/api/bot/catalog` → `401` (key ছাড়া)।
+   `curl -H "x-api-key: <KEY>" https://gobike.au/api/bot/catalog` → product JSON।
 
+> Returns/warranty/shipping-এর নীতিমালার লেখা এখনো বটের ভেতরে curated আছে
+> ([lib/knowledgeBase.js](lib/knowledgeBase.js) → `STATIC_POLICY_SECTIONS`) কারণ ওগুলো
+> স্টোরে structured ভাবে নেই। দাম/স্টক বদলালে কিছু করতে হয় না — live আসে।
+
+---
+
+## ধাপ ৪ — বটের নিজের database
+
+এটা বটের **নিজের ছোট database** (conversation history, handoff queue, settings) —
+স্টোরের database নয়। Render/Neon/Supabase — যেকোনো Postgres চলবে।
+
+Connection string `.env`-এ `DATABASE_URL`-এ বসান, তারপর একবার:
 ```bash
 psql "$DATABASE_URL" -f sql/schema.sql
 ```
-
-**Order lookup আপনার আসল schema-র সাথে মেলাতে হবে।** বট ডিফল্টভাবে ধরে নেয়
-একটা `orders` টেবিলে `order_number`, `status`, `tracking_number`, `carrier`,
-`estimated_delivery` — এই কলামগুলো আছে। আপনার আসল টেবিলের নাম/কলাম অন্যরকম
-হলে দুইভাবে ঠিক করতে পারেন:
-
-- **সহজ:** `.env`-এ `ORDERS_TABLE`, `ORDERS_ORDER_NUMBER_COLUMN` ইত্যাদি env
-  var গুলো আপনার আসল নামে বদলে দিন।
-- **নিরাপদ (recommended):** `sql/schema.sql`-এর কমেন্টে একটা example view
-  দেওয়া আছে — সেটা দিয়ে আপনার আসল টেবিলকে বটের প্রত্যাশিত নামে "ম্যাপ" করুন,
-  আর `ORDERS_TABLE=bot_order_view` বসিয়ে দিন। এতে বট কখনো আপনার আসল টেবিল
-  সরাসরি টাচ করে না।
+এটা `bot_conversations`, `bot_handoffs`, `bot_settings` — এই ৩টা টেবিল বানায়।
 
 ---
 
-## ধাপ ৪ — Deploy করা (Railway অথবা Render)
+## ধাপ ৫ — Deploy (Render)
 
-1. এই পুরো ফোল্ডারটা একটা নতুন GitHub repo-তে push করুন (`.env` ফাইলটা
-   **push করবেন না** — `.gitignore` এ `.env` যোগ করে দিন, শুধু
-   `.env.example` থাকবে)।
-2. [railway.app](https://railway.app) অথবা [render.com](https://render.com)
-   এ গিয়ে "New Project" → "Deploy from GitHub repo" বেছে সেই repo সিলেক্ট
-   করুন।
-3. Environment Variables সেকশনে `.env.example`-এর প্রতিটা variable-এর আসল
-   ভ্যালু বসান (`META_VERIFY_TOKEN`, `META_APP_SECRET`,
-   `META_PAGE_ACCESS_TOKEN`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL`,
-   `DATABASE_URL`, ইত্যাদি)।
-4. Build/Start command এমনিতেই ধরে নেবে (`npm install` + `npm start`),
-   `package.json`-এ সেটআপ করা আছে।
-5. Deploy হওয়ার পর যে public URL পাবেন (যেমন
-   `https://gobike-bot.up.railway.app`), সেটা দিয়ে উপরে ধাপ ১-এর Webhook
-   অংশ সম্পূর্ণ করুন (`/webhook` যোগ করে)।
-
-দুটোরই ফ্রি/স্টার্টার টায়ার আছে ছোট ট্রাফিকের জন্য যথেষ্ট, কিন্তু usage বাড়লে
-paid plan লাগতে পারে — dashboard-এ pricing দেখে নিন।
+1. এই ফোল্ডার একটা GitHub repo-তে push করুন (`.env` push করবেন **না**)।
+2. render.com → "New Web Service" → GitHub repo সিলেক্ট।
+3. Environment Variables — `.env.example`-এর প্রতিটা ভ্যালু বসান:
+   - `META_VERIFY_TOKEN`, `META_APP_SECRET`, `META_PAGE_ACCESS_TOKEN`
+   - `ANTHROPIC_API_KEY`, `CLAUDE_MODEL`
+   - `DATABASE_URL`
+   - `SHOP_API_BASE_URL=https://gobike.au`, `BOT_API_KEY` (my-shop-এর সাথে একই)
+   - `DASHBOARD_USER`, `DASHBOARD_PASSWORD`
+4. Build/Start আপনা থেকেই হবে (`npm install` + `npm start`)।
+5. Deploy হলে যে URL পাবেন সেটা দিয়ে ধাপ ১-এর Webhook অংশ সম্পূর্ণ করুন।
 
 ---
 
-## ধাপ ৫ — টেস্ট করা
+## Dashboard
 
-1. আপনার নিজের Facebook/Instagram account দিয়ে GoBike Page-এ একটা মেসেজ
-   পাঠান (যেমন "16 inch bike-এর দাম কত?")।
-2. রিপ্লাই আসছে কিনা, তথ্য ঠিক আছে কিনা দেখুন।
-3. একটা fake order number দিয়ে "আমার অর্ডার কোথায়?" জিজ্ঞেস করে order-lookup
-   ফিচার টেস্ট করুন।
-4. Hosting platform (Railway/Render) এর Logs ট্যাবে গিয়ে কোনো error আসছে
-   কিনা দেখে নিন।
+`https://gobike-messenger-bot.onrender.com/dashboard` — `DASHBOARD_USER` /
+`DASHBOARD_PASSWORD` দিয়ে লগইন (Basic Auth)। দুটো env var সেট না থাকলে dashboard
+বন্ধ থাকে।
+
+- **Overview** — ২৪ঘণ্টা/৭দিনের message count, customer সংখ্যা, খোলা handoff, স্টোর
+  connection status।
+- **Handoffs** — যেসব conversation human দরকার। "Resolve" দিয়ে কেটে দিন।
+- **Conversations** — recent customer লিস্ট → ক্লিক করে পুরো চ্যাট দেখুন।
+- **Knowledge base** — "Extra knowledge" box-এ যা লেখেন সেটা বট authoritative ধরে
+  (correction, current promo, one-off নোট)। নিচে স্টোর থেকে আসা live catalog দেখা
+  যায় + "Refresh from store" বাটন।
+- **Settings** — বট চালু/বন্ধ toggle (বন্ধ থাকলে customer একটা offline message পায়,
+  Claude কল হয় না), আর সেই offline message-এর লেখা।
+
+---
+
+## ধাপ ৬ — টেস্ট
+
+1. নিজের FB/Instagram account থেকে GoBike Page-এ মেসেজ করুন ("20 inch bike-এর দাম কত?")।
+2. reply-তে দাম live catalog-এর সাথে মিলছে কিনা দেখুন।
+3. একটা আসল order number দিয়ে "আমার অর্ডার কোথায়?" — বট email চাইবে, তারপর status দেবে।
+4. "তুমি কি রোবট?" — বট সৎভাবে বলবে (assistant + real team) আর human-এ flag করবে।
+5. রাগী complaint মেসেজ — dashboard-এর Handoffs-এ চলে আসা উচিত।
+6. Render Logs-এ error আছে কিনা দেখুন।
 
 ---
 
 ## জরুরি নোট
 
-- **রিটার্ন পলিসিতে গরমিল আছে:** আপনার সাইটে banner/FAQ-তে লেখা "30-Day
-  Returns" কিন্তু আসল Refund & Returns Policy পেজে লেখা 14 দিন। এই দুটো এক
-  করে দিন — ততক্ষণ বটকে বলা আছে exact সংখ্যা না বলে policy page-এ পাঠাতে,
-  যাতে ভুল তথ্য না যায়।
-- **তথ্য আপডেট রাখুন:** দাম/স্টক/পলিসি বদলালে `lib/knowledgeBase.js` ফাইলটা
-  ম্যানুয়ালি আপডেট করে আবার deploy করতে হবে। এটা ২০২৬-০৮-২৯ তারিখে
-  gobike.au থেকে নেওয়া তথ্য দিয়ে বানানো।
-- **নিরাপত্তা:** `.env` ফাইল/টোকেন কখনো GitHub-এ push করবেন না। কোনো টোকেন
-  ফাঁস হলে সাথে সাথে Meta Dashboard আর Anthropic Console থেকে rotate করে
-  নিন।
-- **খরচ:** Claude API ব্যবহার প্রতি মেসেজে সামান্য খরচ হয় (pay-as-you-go,
-  console.anthropic.com এ billing/usage দেখা যায়)। প্রথমদিকে usage মনিটর
-  করে দেখে নিন volume অনুযায়ী মাসিক খরচ কেমন আসছে।
+- **রিটার্ন পলিসি:** সাইটে banner/FAQ-তে "30-Day Returns" কিন্তু policy পেজে 14 দিন।
+  এই দুটো এক করুন — ততক্ষণ বট exact সংখ্যা না বলে policy page-এ পাঠাবে।
+- **নিরাপত্তা:** `.env` / টোকেন / `BOT_API_KEY` কখনো GitHub-এ push করবেন না। ফাঁস হলে
+  সাথে সাথে rotate করুন (Meta Dashboard, Anthropic Console, দুই রিপোর env)।
+- **খরচ:** প্রতি মেসেজে সামান্য Claude API খরচ (pay-as-you-go)। prompt caching থাকায়
+  পরপর মেসেজে অনেক সস্তা। প্রথমদিকে console.anthropic.com-এ usage মনিটর করুন।
+- **Order privacy:** বট শুধু order number + সেই order-এর email মিললে তবেই details দেয়।
+  Guest order-এ email না থাকলে details দিয়ে দেয় — এটা my-shop-এর
+  [app/api/bot/order/route.ts](../my-shop/app/api/bot/order/route.ts)-এ বদলানো যায়।
 
 ---
 
 ## ফাইল স্ট্রাকচার
 
 ```
-server.js              Express server, webhook endpoints
-lib/claudeAgent.js      Claude API call + tool-use loop (order lookup, escalation)
-lib/systemPrompt.js     Bot-এর persona + instructions
-lib/knowledgeBase.js    gobike.au থেকে নেওয়া product/policy তথ্য (এখানে আপডেট করবেন)
-lib/db.js               PostgreSQL: conversation history + order lookup
-lib/metaSend.js         Messenger/Instagram Send API wrapper
-sql/schema.sql          Bot-এর নিজের টেবিল বানানোর SQL + order-schema mapping guide
-.env.example            সব দরকারি environment variable-এর তালিকা
+server.js                Express server, webhook + dashboard mount, bot on/off gate
+lib/claudeAgent.js       Claude API call + tool-use loop (order lookup, escalation), prompt cache
+lib/systemPrompt.js      বট-এর persona + instructions (honest-if-asked)
+lib/knowledgeBase.js     live catalog → plain text + curated policy sections + kb_override
+lib/shopClient.js        my-shop /api/bot/* client (cache + graceful fallback)
+lib/db.js                বটের Postgres: history, handoffs, settings, dashboard queries
+lib/metaSend.js          Messenger/Instagram Send API wrapper
+lib/adminApi.js          /api/admin/* — dashboard-এর JSON API
+lib/dashboardAuth.js     Basic Auth middleware
+public/dashboard.html    dashboard UI (single self-contained file)
+sql/schema.sql           bot_conversations / bot_handoffs / bot_settings
+.env.example             সব environment variable
+
+my-shop রিপোতে:
+app/api/bot/_auth.ts      x-api-key যাচাই + helpers
+app/api/bot/catalog/      GET — published products, live দাম/stock
+app/api/bot/order/        POST — order status (order number + email মিলতে হবে)
+app/api/bot/policies/     GET — store contact + config
 ```

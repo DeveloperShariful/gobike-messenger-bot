@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GoBike Bot Dashboard</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e3e6ea;
+    --text: #1c2024;
+    --muted: #6b7280;
+    --accent: #1f7a4d;
+    --accent-soft: #e6f4ec;
+    --danger: #b4232c;
+    --danger-soft: #fbeaea;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --panel: #1c1f24;
+      --border: #2c313a;
+      --text: #e8eaed;
+      --muted: #9aa2ad;
+      --accent: #4cc98a;
+      --accent-soft: #17352a;
+      --danger: #f0787f;
+      --danger-soft: #3a1f22;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  .pill {
+    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .pill.off { background: var(--danger-soft); color: var(--danger); }
+  nav {
+    display: flex; gap: 4px; padding: 10px 18px 0;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  nav button {
+    border: 0; background: transparent; color: var(--muted);
+    padding: 9px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  main { padding: 22px; max-width: 1000px; margin: 0 auto; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  }
+  .card .n { font-size: 26px; font-weight: 700; }
+  .card .l { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+    margin-top: 16px;
+  }
+  .panel h2 { font-size: 14px; margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  tr:last-child td { border-bottom: 0; }
+  button.act {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  button.act:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { opacity: .92; color: #fff; }
+  textarea, input[type=text] {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit;
+  }
+  textarea { min-height: 120px; resize: vertical; }
+  .muted { color: var(--muted); }
+  .row { display: flex; gap: 20px; }
+  .col { flex: 1; min-width: 0; }
+  .list { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; max-height: 420px; overflow-y: auto; }
+  .list .item { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px; }
+  .list .item:last-child { border-bottom: 0; }
+  .list .item:hover, .list .item.sel { background: var(--accent-soft); }
+  .list .item .when { color: var(--muted); font-size: 11.5px; }
+  .thread { border: 1px solid var(--border); border-radius: 10px; padding: 12px; max-height: 420px; overflow-y: auto; }
+  .bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; margin: 6px 0; font-size: 13px; white-space: pre-wrap; word-wrap: break-word; }
+  .bubble.user { background: var(--bg); border: 1px solid var(--border); }
+  .bubble.assistant { background: var(--accent-soft); margin-left: auto; }
+  .bubble .meta { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+  .switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
+  .toggle { width: 44px; height: 24px; border-radius: 999px; background: var(--border); position: relative; cursor: pointer; transition: background .15s; flex: none; }
+  .toggle::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: left .15s; }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { left: 23px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .prod { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 13px; }
+  .prod h3 { margin: 0 0 4px; font-size: 13.5px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); margin-right: 4px; }
+  .tag.ok { color: var(--accent); border-color: var(--accent); }
+  .tag.no { color: var(--danger); border-color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <h1>GoBike Bot</h1>
+  <span id="statusPill" class="pill">…</span>
+  <span id="freshness" class="muted" style="font-size:12px;margin-left:auto"></span>
+</header>
+<nav>
+  <button data-tab="overview" class="active">Overview</button>
+  <button data-tab="handoffs">Handoffs <span id="hoBadge"></span></button>
+  <button data-tab="convos">Conversations</button>
+  <button data-tab="kb">Knowledge base</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+<main>
+  <section id="overview" class="tab active">
+    <div class="cards" id="statCards"></div>
+    <div class="panel">
+      <h2>Store connection</h2>
+      <div id="storeConn" class="muted">Checking…</div>
+    </div>
+  </section>
+
+  <section id="handoffs" class="tab">
+    <div class="panel">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span>Conversations flagged for a human</span>
+        <label class="muted" style="font-weight:400;font-size:12.5px">
+          <input type="checkbox" id="showResolved" /> show resolved
+        </label>
+      </h2>
+      <div id="handoffTable">Loading…</div>
+    </div>
+  </section>
+
+  <section id="convos" class="tab">
+    <div class="row">
+      <div class="col" style="max-width:320px">
+        <div class="panel" style="margin-top:0">
+          <h2>Recent customers</h2>
+          <div class="list" id="senderList">Loading…</div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel" style="margin-top:0">
+          <h2 id="threadTitle">Pick a customer</h2>
+          <div class="thread" id="thread"><span class="muted">No conversation selected.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="kb" class="tab">
+    <div class="panel">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span>Extra knowledge (added to what the bot tells customers)</span>
+        <button class="act primary" id="saveKb">Save</button>
+      </h2>
+      <p class="muted" style="margin-top:0">
+        Anything you type here is treated as authoritative and overrides the
+        built-in facts. Use it for corrections, current promos, one-off notes.
+      </p>
+      <textarea id="kbOverride" placeholder="e.g. The free T-shirt promo ends 30 Sept 2026. The 16&quot; is back in stock."></textarea>
+    </div>
+    <div class="panel">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span>Live catalogue the bot is using</span>
+        <button class="act" id="refreshCat">Refresh from store</button>
+      </h2>
+      <div id="catList" class="muted">Loading…</div>
+    </div>
+  </section>
+
+  <section id="settings" class="tab">
+    <div class="panel">
+      <h2>Bot status</h2>
+      <div class="switch">
+        <div class="toggle" id="botToggle"></div>
+        <span id="botToggleLabel">…</span>
+      </div>
+      <p class="muted">When off, customers get the message below and the AI is not called.</p>
+    </div>
+    <div class="panel">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span>Offline message</span>
+        <button class="act primary" id="saveOffline">Save</button>
+      </h2>
+      <textarea id="offlineMessage"></textarea>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (path, opts) => {
+  const res = await fetch("/api/admin" + path, {
+    headers: opts && opts.body ? { "Content-Type": "application/json" } : undefined,
+    ...opts,
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+};
+const toast = (msg) => {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+};
+const ago = (d) => {
+  const s = (Date.now() - new Date(d).getTime()) / 1000;
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+};
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// ---- tabs ----
+document.querySelectorAll("nav button").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    $("#" + b.dataset.tab).classList.add("active");
+    if (b.dataset.tab === "handoffs") loadHandoffs();
+    if (b.dataset.tab === "convos") loadSenders();
+    if (b.dataset.tab === "kb") loadKb();
+    if (b.dataset.tab === "settings") loadSettings();
+  };
+});
+
+// ---- overview ----
+async function loadOverview() {
+  const s = await api("/stats");
+  const cards = [
+    ["messages_24h", "Messages (24h)"],
+    ["messages_7d", "Messages (7d)"],
+    ["customers_7d", "Customers (7d)"],
+    ["open_handoffs", "Open handoffs"],
+    ["customers_total", "Customers all-time"],
+  ];
+  $("#statCards").innerHTML = cards
+    .map(([k, l]) => `<div class="card"><div class="n">${s[k] ?? 0}</div><div class="l">${l}</div></div>`)
+    .join("");
+  $("#hoBadge").textContent = s.open_handoffs ? "(" + s.open_handoffs + ")" : "";
+
+  try {
+    const c = await api("/catalog");
+    const st = c.status || {};
+    const n = c.catalog ? c.catalog.productCount : 0;
+    $("#storeConn").innerHTML = c.catalog
+      ? `Connected to <b>${esc(st.baseUrl)}</b> — ${n} products loaded${st.catalogAgeMs != null ? ", cached " + Math.round(st.catalogAgeMs / 1000) + "s ago" : ""}.`
+      : `Not reachable at <b>${esc(st.baseUrl)}</b>. Bot is running on its built-in fallback facts.`;
+    $("#freshness").textContent = c.catalog ? "store: live" : "store: fallback";
+  } catch { $("#storeConn").textContent = "Could not check store connection."; }
+}
+
+// ---- status pill ----
+async function refreshPill() {
+  try {
+    const s = await api("/settings");
+    const on = s.bot_enabled !== "false";
+    const p = $("#statusPill");
+    p.textContent = on ? "Live" : "Paused";
+    p.classList.toggle("off", !on);
+  } catch {}
+}
+
+// ---- handoffs ----
+async function loadHandoffs() {
+  const resolved = $("#showResolved").checked;
+  const rows = await api("/handoffs?resolved=" + resolved);
+  if (!rows.length) { $("#handoffTable").innerHTML = '<span class="muted">Nothing here — nice.</span>'; return; }
+  $("#handoffTable").innerHTML = `<table><thead><tr><th>When</th><th>Platform</th><th>Reason</th><th>Last message</th><th></th></tr></thead><tbody>${rows
+    .map((r) => `<tr>
+      <td>${ago(r.created_at)}</td>
+      <td>${esc(r.platform)}</td>
+      <td>${esc(r.reason)}</td>
+      <td class="muted">${esc((r.last_message || "").slice(0, 120))}</td>
+      <td>${r.resolved ? '<span class="muted">resolved</span>' : `<button class="act" data-id="${r.id}">Resolve</button>`}</td>
+    </tr>`)
+    .join("")}</tbody></table>`;
+  $("#handoffTable").querySelectorAll("button[data-id]").forEach((b) => {
+    b.onclick = async () => { await api("/handoffs/" + b.dataset.id + "/resolve", { method: "POST" }); loadHandoffs(); loadOverview(); toast("Resolved"); };
+  });
+}
+$("#showResolved").onchange = loadHandoffs;
+
+// ---- conversations ----
+async function loadSenders() {
+  const rows = await api("/senders");
+  if (!rows.length) { $("#senderList").innerHTML = '<div class="item muted">No conversations yet.</div>'; return; }
+  $("#senderList").innerHTML = rows
+    .map((r) => `<div class="item" data-p="${esc(r.platform)}" data-s="${esc(r.sender_id)}">
+      <div><b>${esc(r.platform)}</b> · ${esc(r.sender_id.slice(0, 14))}…</div>
+      <div class="when">${ago(r.last_at)} · ${r.message_count} msgs</div>
+      <div class="muted">${esc((r.last_message || "").slice(0, 60))}</div>
+    </div>`)
+    .join("");
+  $("#senderList").querySelectorAll(".item").forEach((el) => {
+    el.onclick = () => {
+      $("#senderList").querySelectorAll(".item").forEach((x) => x.classList.remove("sel"));
+      el.classList.add("sel");
+      openThread(el.dataset.p, el.dataset.s);
+    };
+  });
+}
+async function openThread(platform, senderId) {
+  $("#threadTitle").textContent = platform + " · " + senderId;
+  const rows = await api("/thread?platform=" + encodeURIComponent(platform) + "&senderId=" + encodeURIComponent(senderId));
+  $("#thread").innerHTML = rows
+    .map((m) => `<div class="bubble ${m.role}">${esc(m.content)}<div class="meta">${m.role} · ${ago(m.created_at)}</div></div>`)
+    .join("") || '<span class="muted">Empty.</span>';
+}
+
+// ---- knowledge base ----
+async function loadKb() {
+  const s = await api("/settings");
+  $("#kbOverride").value = s.kb_override || "";
+  loadCatalog();
+}
+async function loadCatalog() {
+  try {
+    const c = await api("/catalog");
+    if (!c.catalog || !c.catalog.products) { $("#catList").textContent = "Store not reachable — using fallback facts."; return; }
+    const sym = c.catalog.currencySymbol || "$";
+    $("#catList").innerHTML = c.catalog.products
+      .map((p) => `<div class="prod">
+        <h3>${esc(p.name)}</h3>
+        <div>${p.salePrice ? `<b>${sym}${p.salePrice}</b> <s class="muted">${sym}${p.price}</s>` : `<b>${p.price != null ? sym + p.price : "—"}</b>`}
+          <span class="tag ${p.inStock ? "ok" : "no"}">${p.inStock ? "in stock" : "out of stock"}</span>
+          ${p.isPreOrder ? '<span class="tag">pre-order</span>' : ""}</div>
+        <div class="muted" style="margin-top:4px">${esc((p.shortDescription || "").slice(0, 160))}</div>
+      </div>`)
+      .join("");
+  } catch { $("#catList").textContent = "Could not load catalogue."; }
+}
+$("#saveKb").onclick = async () => {
+  await api("/settings", { method: "POST", body: JSON.stringify({ kb_override: $("#kbOverride").value }) });
+  toast("Saved");
+};
+$("#refreshCat").onclick = async () => {
+  $("#refreshCat").textContent = "Refreshing…";
+  await api("/catalog/refresh", { method: "POST" });
+  $("#refreshCat").textContent = "Refresh from store";
+  loadCatalog(); loadOverview(); toast("Catalogue refreshed");
+};
+
+// ---- settings ----
+async function loadSettings() {
+  const s = await api("/settings");
+  const on = s.bot_enabled !== "false";
+  setToggle(on);
+  $("#offlineMessage").value = s.offline_message || "";
+}
+function setToggle(on) {
+  $("#botToggle").classList.toggle("on", on);
+  $("#botToggleLabel").textContent = on ? "Bot is answering customers" : "Bot is paused";
+}
+$("#botToggle").onclick = async () => {
+  const on = !$("#botToggle").classList.contains("on");
+  setToggle(on);
+  await api("/settings", { method: "POST", body: JSON.stringify({ bot_enabled: on ? "true" : "false" }) });
+  refreshPill();
+  toast(on ? "Bot switched on" : "Bot paused");
+};
+$("#saveOffline").onclick = async () => {
+  await api("/settings", { method: "POST", body: JSON.stringify({ offline_message: $("#offlineMessage").value }) });
+  toast("Saved");
+};
+
+// ---- init ----
+loadOverview();
+refreshPill();
+setInterval(refreshPill, 30000);
+</script>
+</body>
+</html>

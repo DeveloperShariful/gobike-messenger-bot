@@ -28,6 +28,21 @@ CREATE TABLE IF NOT EXISTS bot_handoffs (
   resolved    BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Key/value settings the owner controls from the dashboard: the global
+-- on/off switch, the extra knowledge-base text, and the message sent while
+-- the bot is switched off.
+CREATE TABLE IF NOT EXISTS bot_settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL DEFAULT '',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO bot_settings (key, value) VALUES
+  ('bot_enabled', 'true'),
+  ('kb_override', ''),
+  ('offline_message', 'Thanks for your message! Our team will get back to you as soon as we can.')
+ON CONFLICT (key) DO NOTHING;
+
 -- ---------------------------------------------------------------------
 -- ORDER LOOKUP: this bot expects to be able to run, roughly,
 --   SELECT status, tracking_number, carrier, estimated_delivery
