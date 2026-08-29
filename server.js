@@ -4,7 +4,12 @@ const crypto = require("crypto");
 const express = require("express");
 const { sendTextMessage, sendTypingOn, sendMarkSeen } = require("./lib/metaSend");
 const { generateReply } = require("./lib/claudeAgent");
-const { saveMessage, getRecentHistory, getSetting } = require("./lib/db");
+const {
+  saveMessage,
+  getRecentHistory,
+  getSetting,
+  runMigrations,
+} = require("./lib/db");
 const { dashboardAuth } = require("./lib/dashboardAuth");
 const adminApi = require("./lib/adminApi");
 const { createRateLimiter } = require("./lib/rateLimit");
@@ -240,3 +245,15 @@ async function handleMessagingEvent(platform, event) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`GoBike bot listening on port ${PORT}`));
+
+// Create the bot's own tables if they don't exist yet. Doesn't block startup
+// or crash the server if the DB isn't reachable — the dashboard shows that.
+runMigrations()
+  .then(() => console.log("DB schema ready (bot tables created/verified)."))
+  .catch((err) =>
+    console.error(
+      "DB schema setup skipped —",
+      err.message,
+      "(check DATABASE_URL; the dashboard Setup tab shows status)"
+    )
+  );

@@ -87,16 +87,16 @@ my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা rea
 
 ---
 
-## ধাপ ৪ — বটের নিজের database
+## ধাপ ৪ — বটের database
 
-এটা বটের **নিজের ছোট database** (conversation history, handoff queue, settings) —
-স্টোরের database নয়। Render/Neon/Supabase — যেকোনো Postgres চলবে।
+যেকোনো **PostgreSQL** চলবে (Neon / Render / Supabase — MySQL নয়)। Connection
+string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
 
-Connection string `.env`-এ `DATABASE_URL`-এ বসান, তারপর একবার:
-```bash
-psql "$DATABASE_URL" -f sql/schema.sql
-```
-এটা `bot_conversations`, `bot_handoffs`, `bot_settings` — এই ৩টা টেবিল বানায়।
+বট boot হওয়ার সময় নিজে থেকেই `bot_conversations`, `bot_handoffs`,
+`bot_settings` টেবিল বানিয়ে নেয় ([lib/db.js](lib/db.js) → `runMigrations`,
+`sql/schema.sql` চালায়)। কোনো `psql` কমান্ড চালানোর দরকার নেই। এটা শুধু
+`bot_*` টেবিল বানায় — DB-র আর কিছু ছোঁয় না, তাই স্টোরের একই Neon database-ও
+ব্যবহার করা নিরাপদ (আলাদা রাখলে আরও পরিষ্কার)।
 
 ---
 

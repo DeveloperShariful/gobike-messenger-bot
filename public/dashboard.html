@@ -347,7 +347,7 @@ async function loadHealth() {
     $("#setupBanner").innerHTML = `<div class="banner err"><div>❌</div><div><b>Database not connected.</b> Check the <code>DATABASE_URL</code> environment variable on Render.${db.error ? "<br><span class='muted'>" + esc(db.error) + "</span>" : ""}</div></div>`;
   } else if (!db.ready) {
     const missing = Object.entries(db.tables).filter(([, v]) => !v).map(([k]) => k);
-    $("#setupBanner").innerHTML = `<div class="banner"><div>⚙️</div><div><b>Almost there — the bot's tables aren't all created yet.</b><br>Missing: <code>${missing.join("</code> <code>")}</code>.<br>Run this once against your bot database: <code>psql "$DATABASE_URL" -f sql/schema.sql</code></div></div>`;
+    $("#setupBanner").innerHTML = `<div class="banner"><div>⚙️</div><div><b>The bot's tables are being set up.</b><br>Missing: <code>${missing.join("</code> <code>")}</code>. The bot creates these automatically on start — redeploy on Render, or wait a minute and refresh. If it stays like this, the database user may not have CREATE permission.</div></div>`;
   } else {
     $("#setupBanner").innerHTML = "";
   }
@@ -359,7 +359,7 @@ function renderChecklist() {
   const c = HEALTH.config || {}, db = HEALTH.database || {}, shop = HEALTH.shop || {};
   const rows = [
     check(db.ready ? true : db.connected ? "warn" : false, "Bot database",
-      db.ready ? "connected, tables ready" : db.connected ? "connected, run sql/schema.sql" : "not connected — check DATABASE_URL"),
+      db.ready ? "connected, tables ready" : db.connected ? "connected — tables being created, refresh in a minute" : "not connected — check DATABASE_URL"),
     check(shop.reachable, "Store (my-shop) API",
       shop.reachable ? `connected to ${esc(shop.baseUrl || "")} — ${shop.productCount} products` : `not reachable — check SHOP_API_BASE_URL + BOT_API_KEY, and redeploy my-shop`),
     check(c.anthropic_key, "Claude API key", c.anthropic_key ? `set · model ${esc(c.claude_model)}` : "ANTHROPIC_API_KEY not set on Render"),
