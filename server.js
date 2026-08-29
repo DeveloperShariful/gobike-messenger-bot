@@ -7,11 +7,27 @@ const { generateReply } = require("./lib/claudeAgent");
 const { saveMessage, getRecentHistory, getSetting } = require("./lib/db");
 const { dashboardAuth } = require("./lib/dashboardAuth");
 const adminApi = require("./lib/adminApi");
+const { createRateLimiter } = require("./lib/rateLimit");
 
 const app = express();
+// Render (and most hosts) sit behind a proxy — trust it so client IPs are
+// read from X-Forwarded-For for rate limiting.
+app.set("trust proxy", 1);
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const APP_SECRET = process.env.META_APP_SECRET;
+
+// Brute-force / flood protection.
+const dashboardLimiter = createRateLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  message: "Too many requests to the dashboard. Try again in a few minutes.",
+});
+const webhookLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 600,
+  message: "Too many requests.",
+});
 
 // Keep the raw body around so we can verify Meta's X-Hub-Signature-256.
 app.use(
@@ -37,11 +53,11 @@ app.get("/", (req, res) =>
     )
 );
 
-// -------- Dashboard (Basic Auth) --------
-app.get("/dashboard", dashboardAuth, (req, res) =>
+// -------- Dashboard (rate-limited + Basic Auth) --------
+app.get("/dashboard", dashboardLimiter, dashboardAuth, (req, res) =>
   res.sendFile(path.join(__dirname, "public", "dashboard.html"))
 );
-app.use("/api/admin", dashboardAuth, adminApi);
+app.use("/api/admin", dashboardLimiter, dashboardAuth, adminApi);
 
 // -------- Webhook verification (Meta calls this once when you save the
 // webhook URL in the App Dashboard) --------
@@ -98,7 +114,7 @@ function alreadyProcessed(id) {
 }
 
 // -------- Incoming messages (Messenger + Instagram share this shape) --------
-app.post("/webhook", verifySignature, async (req, res) => {
+app.post("/webhook", webhookLimiter, verifySignature, async (req, res) => {
   // Ack immediately — Meta expects a fast 200, we do the real work after.
   res.status(200).send("EVENT_RECEIVED");
 

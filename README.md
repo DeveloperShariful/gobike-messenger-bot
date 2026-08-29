@@ -130,6 +130,8 @@ psql "$DATABASE_URL" -f sql/schema.sql
   যায় + "Refresh from store" বাটন।
 - **Settings** — বট চালু/বন্ধ toggle (বন্ধ থাকলে customer একটা offline message পায়,
   Claude কল হয় না), আর সেই offline message-এর লেখা।
+- **Setup** — কোনটা connected আর কোনটা নয় (DB, store API, Claude key, Meta
+  tokens), আর Meta-তে বসানোর webhook URL। কোনো secret দেখায় না, শুধু ✓/✕।
 
 ---
 
@@ -144,12 +146,24 @@ psql "$DATABASE_URL" -f sql/schema.sql
 
 ---
 
+## নিরাপত্তা (security)
+
+- **`.env` / টোকেন / `BOT_API_KEY` / Anthropic key কখনো GitHub-এ বা chat-এ পাঠাবেন
+  না।** ভুলে কোথাও চলে গেলে সাথে সাথে rotate করুন — Anthropic Console → API Keys,
+  Meta Dashboard → App Secret / Page token, তারপর নতুন value দুই রিপোর env-এ বসান।
+- **`META_APP_SECRET` অবশ্যই সেট করুন।** না থাকলে বট webhook-এ যেকোনো fake মেসেজ
+  বিশ্বাস করবে (কেউ POST করে বট দিয়ে আজেবাজে reply পাঠাতে পারবে)। Setup ট্যাবে এটা
+  লাল দেখাবে যদি সেট না থাকে।
+- **Dashboard password শক্ত দিন** (`DASHBOARD_PASSWORD`)। `/dashboard` আর
+  `/api/admin/*` Basic Auth + rate limit (৫ মিনিটে ৩০০ request/IP) দিয়ে protected।
+  `/webhook`-ও rate-limited (মিনিটে ৬০০/IP)।
+- সব traffic HTTPS (Render/Vercel নিজে থেকেই)। বটের DB-তে শুধু conversation/handoff/
+  settings — কোনো payment বা customer password নেই।
+
 ## জরুরি নোট
 
 - **রিটার্ন পলিসি:** সাইটে banner/FAQ-তে "30-Day Returns" কিন্তু policy পেজে 14 দিন।
   এই দুটো এক করুন — ততক্ষণ বট exact সংখ্যা না বলে policy page-এ পাঠাবে।
-- **নিরাপত্তা:** `.env` / টোকেন / `BOT_API_KEY` কখনো GitHub-এ push করবেন না। ফাঁস হলে
-  সাথে সাথে rotate করুন (Meta Dashboard, Anthropic Console, দুই রিপোর env)।
 - **খরচ:** প্রতি মেসেজে সামান্য Claude API খরচ (pay-as-you-go)। prompt caching থাকায়
   পরপর মেসেজে অনেক সস্তা। প্রথমদিকে console.anthropic.com-এ usage মনিটর করুন।
 - **Order privacy:** বট শুধু order number + সেই order-এর email মিললে তবেই details দেয়।

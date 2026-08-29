@@ -6,162 +6,225 @@
 <title>GoBike Bot Dashboard</title>
 <style>
   :root {
-    --bg: #f6f7f9;
+    --bg: #f4f6f8;
     --panel: #ffffff;
-    --border: #e3e6ea;
-    --text: #1c2024;
-    --muted: #6b7280;
+    --panel-2: #fafbfc;
+    --border: #e4e7eb;
+    --text: #1a1d21;
+    --muted: #697586;
     --accent: #1f7a4d;
-    --accent-soft: #e6f4ec;
+    --accent-2: #17603b;
+    --accent-soft: #e7f4ec;
+    --warn: #9a6700;
+    --warn-soft: #fdf3e0;
     --danger: #b4232c;
-    --danger-soft: #fbeaea;
-    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
-    --radius: 12px;
+    --danger-soft: #fbecec;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 10px rgba(16,24,40,.05);
+    --radius: 14px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14161a;
-      --panel: #1c1f24;
-      --border: #2c313a;
-      --text: #e8eaed;
-      --muted: #9aa2ad;
-      --accent: #4cc98a;
-      --accent-soft: #17352a;
-      --danger: #f0787f;
-      --danger-soft: #3a1f22;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.3);
+      --bg: #101317; --panel: #191d23; --panel-2: #1f242b; --border: #2b313a;
+      --text: #e9ebee; --muted: #98a2b3; --accent: #57cf93; --accent-2: #7bd9ab;
+      --accent-soft: #14322690; --warn: #e6b354; --warn-soft: #33280f;
+      --danger: #f2868d; --danger-soft: #3a1f22;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 12px rgba(0,0,0,.35);
     }
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 22px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    position: sticky; top: 0; z-index: 10;
-  }
-  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-  .pill {
-    font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
-    background: var(--accent-soft); color: var(--accent);
-  }
-  .pill.off { background: var(--danger-soft); color: var(--danger); }
-  nav {
-    display: flex; gap: 4px; padding: 10px 18px 0;
+    display: flex; align-items: center; gap: 12px; padding: 14px 22px;
     background: var(--panel); border-bottom: 1px solid var(--border);
-    overflow-x: auto;
+    position: sticky; top: 0; z-index: 20;
+  }
+  .logo { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .pill {
+    font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.live { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .pill.paused { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .pill.err { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+  header .right { margin-left: auto; font-size: 12px; color: var(--muted); }
+  nav {
+    display: flex; gap: 2px; padding: 8px 16px 0; background: var(--panel);
+    border-bottom: 1px solid var(--border); overflow-x: auto; position: sticky; top: 51px; z-index: 19;
   }
   nav button {
-    border: 0; background: transparent; color: var(--muted);
-    padding: 9px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer;
-    border-bottom: 2px solid transparent; white-space: nowrap;
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    padding: 10px 14px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    border-bottom: 2px solid transparent;
   }
+  nav button:hover { color: var(--text); }
   nav button.active { color: var(--text); border-bottom-color: var(--accent); }
-  main { padding: 22px; max-width: 1000px; margin: 0 auto; }
-  .tab { display: none; }
+  nav button .badge {
+    display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 5px;
+    font-size: 11px; line-height: 17px; text-align: center; border-radius: 999px;
+    background: var(--danger); color: #fff;
+  }
+  main { padding: 20px; max-width: 1060px; margin: 0 auto; }
+  .tab { display: none; animation: fade .18s ease; }
   .tab.active { display: block; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .banner {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px;
+    border-radius: var(--radius); margin-bottom: 18px; font-size: 13px;
+    background: var(--warn-soft); border: 1px solid transparent;
+  }
+  .banner.err { background: var(--danger-soft); }
+  .banner b { display: block; margin-bottom: 2px; }
+  .banner code {
+    background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 5px;
+    font-size: 12px; word-break: break-all;
+  }
+  @media (prefers-color-scheme: dark) { .banner code { background: rgba(255,255,255,.1); } }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .card {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 15px 16px; box-shadow: var(--shadow);
   }
-  .card .n { font-size: 26px; font-weight: 700; }
-  .card .l { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .card .n { font-size: 27px; font-weight: 750; letter-spacing: -.02em; }
+  .card .l { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
   .panel {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
-    margin-top: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; box-shadow: var(--shadow); margin-top: 16px;
   }
-  .panel h2 { font-size: 14px; margin: 0 0 12px; }
+  .panel > h2 {
+    font-size: 13px; margin: 0 0 14px; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px; font-weight: 700;
+  }
+  .panel > h2 .sub { font-weight: 400; color: var(--muted); font-size: 12px; }
+
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   tr:last-child td { border-bottom: 0; }
+
   button.act {
-    border: 1px solid var(--border); background: var(--bg); color: var(--text);
-    border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    border-radius: 9px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
   }
   button.act:hover { border-color: var(--accent); color: var(--accent); }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  button.primary:hover { opacity: .92; color: #fff; }
+  button.primary:hover { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
+  button:disabled { opacity: .5; cursor: default; }
+
   textarea, input[type=text] {
-    width: 100%; background: var(--bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px; padding: 10px; font: inherit;
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 9px; padding: 11px; font: inherit;
   }
   textarea { min-height: 120px; resize: vertical; }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+
   .muted { color: var(--muted); }
-  .row { display: flex; gap: 20px; }
-  .col { flex: 1; min-width: 0; }
-  .list { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; max-height: 420px; overflow-y: auto; }
-  .list .item { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px; }
+  .state { padding: 26px 10px; text-align: center; color: var(--muted); font-size: 13px; }
+  .spin {
+    width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; display: inline-block; animation: sp .7s linear infinite; vertical-align: -4px;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  .row { display: flex; gap: 18px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 260px; }
+  .list { border: 1px solid var(--border); border-radius: 11px; overflow: hidden; max-height: 460px; overflow-y: auto; }
+  .list .item { padding: 11px 13px; border-bottom: 1px solid var(--border); cursor: pointer; }
   .list .item:last-child { border-bottom: 0; }
-  .list .item:hover, .list .item.sel { background: var(--accent-soft); }
-  .list .item .when { color: var(--muted); font-size: 11.5px; }
-  .thread { border: 1px solid var(--border); border-radius: 10px; padding: 12px; max-height: 420px; overflow-y: auto; }
-  .bubble { max-width: 78%; padding: 8px 12px; border-radius: 12px; margin: 6px 0; font-size: 13px; white-space: pre-wrap; word-wrap: break-word; }
-  .bubble.user { background: var(--bg); border: 1px solid var(--border); }
+  .list .item:hover { background: var(--panel-2); }
+  .list .item.sel { background: var(--accent-soft); }
+  .list .item .top { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+  .list .item .when { color: var(--muted); font-size: 11px; }
+  .list .item .prev { color: var(--muted); font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .thread { border: 1px solid var(--border); border-radius: 11px; padding: 14px; max-height: 460px; overflow-y: auto; background: var(--panel-2); }
+  .bubble { max-width: 80%; padding: 9px 13px; border-radius: 13px; margin: 7px 0; font-size: 13px; white-space: pre-wrap; word-wrap: break-word; }
+  .bubble.user { background: var(--panel); border: 1px solid var(--border); }
   .bubble.assistant { background: var(--accent-soft); margin-left: auto; }
-  .bubble .meta { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
-  .switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; }
-  .toggle { width: 44px; height: 24px; border-radius: 999px; background: var(--border); position: relative; cursor: pointer; transition: background .15s; flex: none; }
-  .toggle::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: left .15s; }
+  .bubble .meta { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .switch { display: flex; align-items: center; gap: 12px; }
+  .toggle { width: 46px; height: 26px; border-radius: 999px; background: var(--border); position: relative; cursor: pointer; transition: background .16s; flex: none; }
+  .toggle::after { content: ""; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: left .16s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
   .toggle.on { background: var(--accent); }
   .toggle.on::after { left: 23px; }
-  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
-  .toast.show { opacity: 1; }
-  .prod { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 13px; }
-  .prod h3 { margin: 0 0 4px; font-size: 13.5px; }
-  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); margin-right: 4px; }
-  .tag.ok { color: var(--accent); border-color: var(--accent); }
-  .tag.no { color: var(--danger); border-color: var(--danger); }
+
+  .checklist { display: grid; gap: 10px; }
+  .check { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .check .ico { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+  .check .ico.ok { background: var(--accent-soft); color: var(--accent); }
+  .check .ico.no { background: var(--danger-soft); color: var(--danger); }
+  .check .ico.warn { background: var(--warn-soft); color: var(--warn); }
+  .check .body { flex: 1; }
+  .check .body .t { font-weight: 600; }
+  .check .body .d { color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  .prod { border: 1px solid var(--border); border-radius: 11px; padding: 12px 13px; margin-bottom: 9px; font-size: 13px; }
+  .prod h3 { margin: 0 0 5px; font-size: 13px; }
+  .prod .price { font-weight: 700; }
+  .prod .price s { font-weight: 400; color: var(--muted); margin-left: 5px; }
+  .tag { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); margin-left: 6px; }
+  .tag.ok { color: var(--accent); border-color: transparent; background: var(--accent-soft); }
+  .tag.no { color: var(--danger); border-color: transparent; background: var(--danger-soft); }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; opacity: 0; transition: all .22s; pointer-events: none; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  code.inline { background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+  @media (prefers-color-scheme: dark) { code.inline { background: rgba(255,255,255,.1); } }
 </style>
 </head>
 <body>
 <header>
-  <h1>GoBike Bot</h1>
-  <span id="statusPill" class="pill">…</span>
-  <span id="freshness" class="muted" style="font-size:12px;margin-left:auto"></span>
+  <span class="logo">GoBike Bot</span>
+  <span id="statusPill" class="pill"><span class="dot"></span><span id="pillText">loading…</span></span>
+  <span class="right" id="freshness"></span>
 </header>
 <nav>
   <button data-tab="overview" class="active">Overview</button>
-  <button data-tab="handoffs">Handoffs <span id="hoBadge"></span></button>
+  <button data-tab="handoffs">Handoffs<span id="hoBadge"></span></button>
   <button data-tab="convos">Conversations</button>
   <button data-tab="kb">Knowledge base</button>
   <button data-tab="settings">Settings</button>
+  <button data-tab="setup">Setup</button>
 </nav>
 <main>
+  <div id="setupBanner"></div>
+
   <section id="overview" class="tab active">
     <div class="cards" id="statCards"></div>
     <div class="panel">
-      <h2>Store connection</h2>
-      <div id="storeConn" class="muted">Checking…</div>
+      <h2>Setup checklist</h2>
+      <div id="checklist" class="checklist"><div class="state"><span class="spin"></span></div></div>
     </div>
   </section>
 
   <section id="handoffs" class="tab">
     <div class="panel">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">
+      <h2>
         <span>Conversations flagged for a human</span>
-        <label class="muted" style="font-weight:400;font-size:12.5px">
-          <input type="checkbox" id="showResolved" /> show resolved
-        </label>
+        <label class="sub" style="cursor:pointer"><input type="checkbox" id="showResolved" /> show resolved</label>
       </h2>
-      <div id="handoffTable">Loading…</div>
+      <div id="handoffTable"><div class="state"><span class="spin"></span></div></div>
     </div>
   </section>
 
   <section id="convos" class="tab">
     <div class="row">
-      <div class="col" style="max-width:320px">
+      <div class="col" style="max-width:340px">
         <div class="panel" style="margin-top:0">
           <h2>Recent customers</h2>
-          <div class="list" id="senderList">Loading…</div>
+          <div class="list" id="senderList"><div class="state"><span class="spin"></span></div></div>
         </div>
       </div>
       <div class="col">
@@ -175,22 +238,22 @@
 
   <section id="kb" class="tab">
     <div class="panel">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">
-        <span>Extra knowledge (added to what the bot tells customers)</span>
+      <h2>
+        <span>Extra knowledge <span class="sub">— added to what the bot tells customers</span></span>
         <button class="act primary" id="saveKb">Save</button>
       </h2>
       <p class="muted" style="margin-top:0">
-        Anything you type here is treated as authoritative and overrides the
-        built-in facts. Use it for corrections, current promos, one-off notes.
+        Anything here is treated as authoritative and overrides the built-in facts.
+        Use it for corrections, current promos, one-off notes.
       </p>
       <textarea id="kbOverride" placeholder="e.g. The free T-shirt promo ends 30 Sept 2026. The 16&quot; is back in stock."></textarea>
     </div>
     <div class="panel">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">
+      <h2>
         <span>Live catalogue the bot is using</span>
         <button class="act" id="refreshCat">Refresh from store</button>
       </h2>
-      <div id="catList" class="muted">Loading…</div>
+      <div id="catList"><div class="state"><span class="spin"></span></div></div>
     </div>
   </section>
 
@@ -199,16 +262,30 @@
       <h2>Bot status</h2>
       <div class="switch">
         <div class="toggle" id="botToggle"></div>
-        <span id="botToggleLabel">…</span>
+        <div><div id="botToggleLabel" style="font-weight:600">…</div>
+        <div class="muted" style="font-size:12px">When paused, customers get the message below and the AI is not called.</div></div>
       </div>
-      <p class="muted">When off, customers get the message below and the AI is not called.</p>
     </div>
     <div class="panel">
-      <h2 style="display:flex;justify-content:space-between;align-items:center">
-        <span>Offline message</span>
-        <button class="act primary" id="saveOffline">Save</button>
-      </h2>
+      <h2><span>Offline message</span><button class="act primary" id="saveOffline">Save</button></h2>
       <textarea id="offlineMessage"></textarea>
+    </div>
+  </section>
+
+  <section id="setup" class="tab">
+    <div class="panel">
+      <h2>Connection status</h2>
+      <div id="setupChecklist" class="checklist"><div class="state"><span class="spin"></span></div></div>
+    </div>
+    <div class="panel">
+      <h2>Facebook / Meta webhook</h2>
+      <p class="muted" style="margin-top:0">In the Meta Developer console → your app → Messenger → Settings → Webhooks, use:</p>
+      <div class="checklist">
+        <div class="check"><div class="ico ok">1</div><div class="body"><div class="t">Callback URL</div><div class="d"><code class="inline" id="whUrl">…</code></div></div></div>
+        <div class="check"><div class="ico ok">2</div><div class="body"><div class="t">Verify Token</div><div class="d">the value of your <code class="inline">META_VERIFY_TOKEN</code> env var (set on Render)</div></div></div>
+        <div class="check"><div class="ico ok">3</div><div class="body"><div class="t">Subscribe to fields</div><div class="d"><code class="inline">messages</code>, <code class="inline">messaging_postbacks</code></div></div></div>
+      </div>
+      <p class="muted" style="font-size:12px">Tokens and secrets are set as environment variables on Render, not here — a web dashboard is not a safe place to store them.</p>
     </div>
   </section>
 </main>
@@ -216,20 +293,16 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
-const api = async (path, opts) => {
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+async function api(path, opts) {
   const res = await fetch("/api/admin" + path, {
     headers: opts && opts.body ? { "Content-Type": "application/json" } : undefined,
     ...opts,
   });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
-};
-const toast = (msg) => {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1800);
-};
+}
+const toast = (m) => { const t = $("#toast"); t.textContent = m; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1900); };
 const ago = (d) => {
   const s = (Date.now() - new Date(d).getTime()) / 1000;
   if (s < 60) return "just now";
@@ -237,7 +310,13 @@ const ago = (d) => {
   if (s < 86400) return Math.floor(s / 3600) + "h ago";
   return Math.floor(s / 86400) + "d ago";
 };
-const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const errState = (msg) => `<div class="state">⚠️ ${esc(msg)}</div>`;
+const check = (state, title, desc) => {
+  const ico = state === true ? '<div class="ico ok">✓</div>' : state === "warn" ? '<div class="ico warn">!</div>' : '<div class="ico no">✕</div>';
+  return `<div class="check">${ico}<div class="body"><div class="t">${esc(title)}</div><div class="d">${desc}</div></div></div>`;
+};
+
+let HEALTH = null;
 
 // ---- tabs ----
 document.querySelectorAll("nav button").forEach((b) => {
@@ -246,136 +325,164 @@ document.querySelectorAll("nav button").forEach((b) => {
     document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
     $("#" + b.dataset.tab).classList.add("active");
-    if (b.dataset.tab === "handoffs") loadHandoffs();
-    if (b.dataset.tab === "convos") loadSenders();
-    if (b.dataset.tab === "kb") loadKb();
-    if (b.dataset.tab === "settings") loadSettings();
+    ({ handoffs: loadHandoffs, convos: loadSenders, kb: loadKb, settings: loadSettings, setup: loadSetup, overview: loadOverview }[b.dataset.tab] || (() => {}))();
   };
 });
 
-// ---- overview ----
-async function loadOverview() {
-  const s = await api("/stats");
-  const cards = [
-    ["messages_24h", "Messages (24h)"],
-    ["messages_7d", "Messages (7d)"],
-    ["customers_7d", "Customers (7d)"],
-    ["open_handoffs", "Open handoffs"],
-    ["customers_total", "Customers all-time"],
-  ];
-  $("#statCards").innerHTML = cards
-    .map(([k, l]) => `<div class="card"><div class="n">${s[k] ?? 0}</div><div class="l">${l}</div></div>`)
-    .join("");
-  $("#hoBadge").textContent = s.open_handoffs ? "(" + s.open_handoffs + ")" : "";
-
+// ---- health + banner + checklist ----
+async function loadHealth() {
   try {
-    const c = await api("/catalog");
-    const st = c.status || {};
-    const n = c.catalog ? c.catalog.productCount : 0;
-    $("#storeConn").innerHTML = c.catalog
-      ? `Connected to <b>${esc(st.baseUrl)}</b> — ${n} products loaded${st.catalogAgeMs != null ? ", cached " + Math.round(st.catalogAgeMs / 1000) + "s ago" : ""}.`
-      : `Not reachable at <b>${esc(st.baseUrl)}</b>. Bot is running on its built-in fallback facts.`;
-    $("#freshness").textContent = c.catalog ? "store: live" : "store: fallback";
-  } catch { $("#storeConn").textContent = "Could not check store connection."; }
+    HEALTH = await api("/health");
+  } catch (e) {
+    HEALTH = null;
+    $("#setupBanner").innerHTML = `<div class="banner err"><div>❌</div><div><b>Can't reach the bot's API.</b> The service may still be starting up on Render — refresh in a minute.</div></div>`;
+    setPill("err", "API error");
+    return;
+  }
+  const db = HEALTH.database || {};
+  $("#whUrl").textContent = HEALTH.webhook_url || "";
+  $("#freshness").textContent = HEALTH.shop && HEALTH.shop.reachable ? "store: live" : "store: fallback";
+
+  if (!db.connected) {
+    $("#setupBanner").innerHTML = `<div class="banner err"><div>❌</div><div><b>Database not connected.</b> Check the <code>DATABASE_URL</code> environment variable on Render.${db.error ? "<br><span class='muted'>" + esc(db.error) + "</span>" : ""}</div></div>`;
+  } else if (!db.ready) {
+    const missing = Object.entries(db.tables).filter(([, v]) => !v).map(([k]) => k);
+    $("#setupBanner").innerHTML = `<div class="banner"><div>⚙️</div><div><b>Almost there — the bot's tables aren't all created yet.</b><br>Missing: <code>${missing.join("</code> <code>")}</code>.<br>Run this once against your bot database: <code>psql "$DATABASE_URL" -f sql/schema.sql</code></div></div>`;
+  } else {
+    $("#setupBanner").innerHTML = "";
+  }
+  renderChecklist();
 }
 
+function renderChecklist() {
+  if (!HEALTH) return;
+  const c = HEALTH.config || {}, db = HEALTH.database || {}, shop = HEALTH.shop || {};
+  const rows = [
+    check(db.ready ? true : db.connected ? "warn" : false, "Bot database",
+      db.ready ? "connected, tables ready" : db.connected ? "connected, run sql/schema.sql" : "not connected — check DATABASE_URL"),
+    check(shop.reachable, "Store (my-shop) API",
+      shop.reachable ? `connected to ${esc(shop.baseUrl || "")} — ${shop.productCount} products` : `not reachable — check SHOP_API_BASE_URL + BOT_API_KEY, and redeploy my-shop`),
+    check(c.anthropic_key, "Claude API key", c.anthropic_key ? `set · model ${esc(c.claude_model)}` : "ANTHROPIC_API_KEY not set on Render"),
+    check(c.meta_page_token, "Meta Page Access Token", c.meta_page_token ? "set" : "META_PAGE_ACCESS_TOKEN not set — bot can't send replies"),
+    check(c.meta_app_secret ? true : "warn", "Meta App Secret", c.meta_app_secret ? "set — webhook signatures verified" : "META_APP_SECRET not set — anyone could POST fake messages. Set it before going live."),
+    check(c.meta_verify_token, "Meta Verify Token", c.meta_verify_token ? "set" : "META_VERIFY_TOKEN not set — webhook won't verify"),
+  ];
+  $("#checklist").innerHTML = rows.join("");
+  $("#setupChecklist").innerHTML = rows.join("");
+}
+function loadSetup() { renderChecklist(); }
+
 // ---- status pill ----
+function setPill(cls, text) {
+  const p = $("#statusPill");
+  p.className = "pill " + cls;
+  $("#pillText").textContent = text;
+}
 async function refreshPill() {
   try {
     const s = await api("/settings");
     const on = s.bot_enabled !== "false";
-    const p = $("#statusPill");
-    p.textContent = on ? "Live" : "Paused";
-    p.classList.toggle("off", !on);
-  } catch {}
+    setPill(on ? "live" : "paused", on ? "Live" : "Paused");
+  } catch { setPill("err", "error"); }
+}
+
+// ---- overview ----
+async function loadOverview() {
+  await loadHealth();
+  try {
+    const s = await api("/stats");
+    const cards = [
+      ["messages_24h", "Messages · 24h"], ["messages_7d", "Messages · 7d"],
+      ["customers_7d", "Customers · 7d"], ["open_handoffs", "Open handoffs"],
+      ["customers_total", "Customers · all time"],
+    ];
+    $("#statCards").innerHTML = cards.map(([k, l]) => `<div class="card"><div class="n">${s[k] ?? 0}</div><div class="l">${l}</div></div>`).join("");
+    $("#hoBadge").innerHTML = s.open_handoffs ? `<span class="badge">${s.open_handoffs}</span>` : "";
+  } catch {
+    $("#statCards").innerHTML = errState("Couldn't load stats.");
+  }
 }
 
 // ---- handoffs ----
 async function loadHandoffs() {
-  const resolved = $("#showResolved").checked;
-  const rows = await api("/handoffs?resolved=" + resolved);
-  if (!rows.length) { $("#handoffTable").innerHTML = '<span class="muted">Nothing here — nice.</span>'; return; }
-  $("#handoffTable").innerHTML = `<table><thead><tr><th>When</th><th>Platform</th><th>Reason</th><th>Last message</th><th></th></tr></thead><tbody>${rows
-    .map((r) => `<tr>
-      <td>${ago(r.created_at)}</td>
-      <td>${esc(r.platform)}</td>
-      <td>${esc(r.reason)}</td>
+  const box = $("#handoffTable");
+  try {
+    const rows = await api("/handoffs?resolved=" + $("#showResolved").checked);
+    if (!rows.length) { box.innerHTML = '<div class="state">Nothing here — nice. 👍</div>'; return; }
+    box.innerHTML = `<table><thead><tr><th>When</th><th>Platform</th><th>Reason</th><th>Last message</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr>
+      <td>${ago(r.created_at)}</td><td>${esc(r.platform)}</td><td>${esc(r.reason)}</td>
       <td class="muted">${esc((r.last_message || "").slice(0, 120))}</td>
-      <td>${r.resolved ? '<span class="muted">resolved</span>' : `<button class="act" data-id="${r.id}">Resolve</button>`}</td>
-    </tr>`)
-    .join("")}</tbody></table>`;
-  $("#handoffTable").querySelectorAll("button[data-id]").forEach((b) => {
-    b.onclick = async () => { await api("/handoffs/" + b.dataset.id + "/resolve", { method: "POST" }); loadHandoffs(); loadOverview(); toast("Resolved"); };
-  });
+      <td>${r.resolved ? '<span class="muted">resolved</span>' : `<button class="act" data-id="${r.id}">Resolve</button>`}</td></tr>`).join("")}</tbody></table>`;
+    box.querySelectorAll("button[data-id]").forEach((b) => {
+      b.onclick = async () => { await api("/handoffs/" + b.dataset.id + "/resolve", { method: "POST" }); loadHandoffs(); loadOverview(); toast("Resolved"); };
+    });
+  } catch { box.innerHTML = errState("Couldn't load handoffs."); }
 }
 $("#showResolved").onchange = loadHandoffs;
 
 // ---- conversations ----
 async function loadSenders() {
-  const rows = await api("/senders");
-  if (!rows.length) { $("#senderList").innerHTML = '<div class="item muted">No conversations yet.</div>'; return; }
-  $("#senderList").innerHTML = rows
-    .map((r) => `<div class="item" data-p="${esc(r.platform)}" data-s="${esc(r.sender_id)}">
-      <div><b>${esc(r.platform)}</b> · ${esc(r.sender_id.slice(0, 14))}…</div>
-      <div class="when">${ago(r.last_at)} · ${r.message_count} msgs</div>
-      <div class="muted">${esc((r.last_message || "").slice(0, 60))}</div>
-    </div>`)
-    .join("");
-  $("#senderList").querySelectorAll(".item").forEach((el) => {
-    el.onclick = () => {
-      $("#senderList").querySelectorAll(".item").forEach((x) => x.classList.remove("sel"));
-      el.classList.add("sel");
-      openThread(el.dataset.p, el.dataset.s);
-    };
-  });
+  const box = $("#senderList");
+  try {
+    const rows = await api("/senders");
+    if (!rows.length) { box.innerHTML = '<div class="state">No conversations yet.</div>'; return; }
+    box.innerHTML = rows.map((r) => `<div class="item" data-p="${esc(r.platform)}" data-s="${esc(r.sender_id)}">
+      <div class="top"><b>${esc(r.platform)}</b><span class="when">${ago(r.last_at)}</span></div>
+      <div class="prev">${esc((r.last_message || "").slice(0, 80))}</div>
+      <div class="when">${r.message_count} messages</div></div>`).join("");
+    box.querySelectorAll(".item").forEach((el) => {
+      el.onclick = () => {
+        box.querySelectorAll(".item").forEach((x) => x.classList.remove("sel"));
+        el.classList.add("sel");
+        openThread(el.dataset.p, el.dataset.s);
+      };
+    });
+  } catch { box.innerHTML = errState("Couldn't load conversations."); }
 }
 async function openThread(platform, senderId) {
-  $("#threadTitle").textContent = platform + " · " + senderId;
-  const rows = await api("/thread?platform=" + encodeURIComponent(platform) + "&senderId=" + encodeURIComponent(senderId));
-  $("#thread").innerHTML = rows
-    .map((m) => `<div class="bubble ${m.role}">${esc(m.content)}<div class="meta">${m.role} · ${ago(m.created_at)}</div></div>`)
-    .join("") || '<span class="muted">Empty.</span>';
+  $("#threadTitle").textContent = platform + " · " + senderId.slice(0, 18);
+  try {
+    const rows = await api("/thread?platform=" + encodeURIComponent(platform) + "&senderId=" + encodeURIComponent(senderId));
+    $("#thread").innerHTML = rows.map((m) => `<div class="bubble ${m.role === "assistant" ? "assistant" : "user"}">${esc(m.content)}<div class="meta">${m.role} · ${ago(m.created_at)}</div></div>`).join("") || '<span class="muted">Empty.</span>';
+  } catch { $("#thread").innerHTML = errState("Couldn't load this thread."); }
 }
 
 // ---- knowledge base ----
 async function loadKb() {
-  const s = await api("/settings");
-  $("#kbOverride").value = s.kb_override || "";
+  try { const s = await api("/settings"); $("#kbOverride").value = s.kb_override || ""; } catch {}
   loadCatalog();
 }
 async function loadCatalog() {
+  const box = $("#catList");
   try {
     const c = await api("/catalog");
-    if (!c.catalog || !c.catalog.products) { $("#catList").textContent = "Store not reachable — using fallback facts."; return; }
+    if (!c.catalog || !c.catalog.products) { box.innerHTML = '<div class="state">Store not reachable — the bot is using its built-in fallback facts. Check the Setup tab.</div>'; return; }
     const sym = c.catalog.currencySymbol || "$";
-    $("#catList").innerHTML = c.catalog.products
-      .map((p) => `<div class="prod">
-        <h3>${esc(p.name)}</h3>
-        <div>${p.salePrice ? `<b>${sym}${p.salePrice}</b> <s class="muted">${sym}${p.price}</s>` : `<b>${p.price != null ? sym + p.price : "—"}</b>`}
-          <span class="tag ${p.inStock ? "ok" : "no"}">${p.inStock ? "in stock" : "out of stock"}</span>
-          ${p.isPreOrder ? '<span class="tag">pre-order</span>' : ""}</div>
-        <div class="muted" style="margin-top:4px">${esc((p.shortDescription || "").slice(0, 160))}</div>
-      </div>`)
-      .join("");
-  } catch { $("#catList").textContent = "Could not load catalogue."; }
+    box.innerHTML = `<p class="muted" style="margin-top:0">${c.catalog.productCount} products · updated ${ago(c.catalog.generatedAt)}</p>` + c.catalog.products.map((p) => `<div class="prod">
+      <h3>${esc(p.name)}</h3>
+      <div><span class="price">${p.salePrice ? `${sym}${p.salePrice} <s>${sym}${p.price}</s>` : (p.price != null ? sym + p.price : "—")}</span>
+        <span class="tag ${p.inStock ? "ok" : "no"}">${p.inStock ? "in stock" : "out of stock"}</span>${p.isPreOrder ? '<span class="tag">pre-order</span>' : ""}</div>
+      <div class="muted" style="margin-top:5px">${esc((p.shortDescription || "").slice(0, 150))}</div></div>`).join("");
+  } catch { box.innerHTML = errState("Couldn't load the catalogue."); }
 }
 $("#saveKb").onclick = async () => {
-  await api("/settings", { method: "POST", body: JSON.stringify({ kb_override: $("#kbOverride").value }) });
-  toast("Saved");
+  try { await api("/settings", { method: "POST", body: JSON.stringify({ kb_override: $("#kbOverride").value }) }); toast("Saved"); }
+  catch { toast("Save failed"); }
 };
 $("#refreshCat").onclick = async () => {
-  $("#refreshCat").textContent = "Refreshing…";
-  await api("/catalog/refresh", { method: "POST" });
-  $("#refreshCat").textContent = "Refresh from store";
-  loadCatalog(); loadOverview(); toast("Catalogue refreshed");
+  const b = $("#refreshCat"); b.disabled = true; b.textContent = "Refreshing…";
+  try { await api("/catalog/refresh", { method: "POST" }); toast("Catalogue refreshed"); } catch { toast("Refresh failed"); }
+  b.disabled = false; b.textContent = "Refresh from store";
+  loadCatalog(); loadOverview();
 };
 
 // ---- settings ----
 async function loadSettings() {
-  const s = await api("/settings");
-  const on = s.bot_enabled !== "false";
-  setToggle(on);
-  $("#offlineMessage").value = s.offline_message || "";
+  try {
+    const s = await api("/settings");
+    setToggle(s.bot_enabled !== "false");
+    $("#offlineMessage").value = s.offline_message || "";
+  } catch { $("#botToggleLabel").textContent = "Couldn't load settings"; }
 }
 function setToggle(on) {
   $("#botToggle").classList.toggle("on", on);
@@ -384,13 +491,14 @@ function setToggle(on) {
 $("#botToggle").onclick = async () => {
   const on = !$("#botToggle").classList.contains("on");
   setToggle(on);
-  await api("/settings", { method: "POST", body: JSON.stringify({ bot_enabled: on ? "true" : "false" }) });
-  refreshPill();
-  toast(on ? "Bot switched on" : "Bot paused");
+  try {
+    await api("/settings", { method: "POST", body: JSON.stringify({ bot_enabled: on ? "true" : "false" }) });
+    refreshPill(); toast(on ? "Bot switched on" : "Bot paused");
+  } catch { setToggle(!on); toast("Failed"); }
 };
 $("#saveOffline").onclick = async () => {
-  await api("/settings", { method: "POST", body: JSON.stringify({ offline_message: $("#offlineMessage").value }) });
-  toast("Saved");
+  try { await api("/settings", { method: "POST", body: JSON.stringify({ offline_message: $("#offlineMessage").value }) }); toast("Saved"); }
+  catch { toast("Save failed"); }
 };
 
 // ---- init ----
