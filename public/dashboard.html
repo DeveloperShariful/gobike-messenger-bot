@@ -274,7 +274,8 @@
 
   <section id="setup" class="tab">
     <div class="panel">
-      <h2>Connection status</h2>
+      <h2><span>Connection status</span><button class="act primary" id="runSelftest">Run self-test</button></h2>
+      <div id="selftestResult"></div>
       <div id="setupChecklist" class="checklist"><div class="state"><span class="spin"></span></div></div>
     </div>
     <div class="panel">
@@ -371,6 +372,28 @@ function renderChecklist() {
   $("#setupChecklist").innerHTML = rows.join("");
 }
 function loadSetup() { renderChecklist(); }
+
+$("#runSelftest").onclick = async () => {
+  const b = $("#runSelftest"); b.disabled = true; b.textContent = "Testing…";
+  const box = $("#selftestResult");
+  box.innerHTML = '<div class="state"><span class="spin"></span> running a live test call…</div>';
+  try {
+    const r = await api("/selftest");
+    const c = r.claude || {}, s = r.store || {};
+    const rows = [
+      c.ok
+        ? check(true, "Claude API — working", `model ${esc(c.model)} replied "${esc(c.reply)}"`)
+        : check(false, "Claude API — FAILED", `<b>${esc(String(c.status || ""))} ${esc(c.type || "")}</b><br>${esc(c.error || "")}`),
+      s.ok
+        ? check(true, "Store API — working", `${s.products} products`)
+        : check(false, "Store API — FAILED", esc(s.error || "not reachable")),
+    ];
+    box.innerHTML = `<div class="checklist" style="margin-bottom:14px">${rows.join("")}</div>`;
+  } catch (e) {
+    box.innerHTML = errState("Self-test request failed: " + e.message);
+  }
+  b.disabled = false; b.textContent = "Run self-test";
+};
 
 // ---- status pill ----
 function setPill(cls, text) {
