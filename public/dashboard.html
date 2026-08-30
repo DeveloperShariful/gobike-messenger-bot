@@ -285,9 +285,14 @@
       <div class="checklist">
         <div class="check"><div class="ico ok">1</div><div class="body"><div class="t">Callback URL</div><div class="d"><code class="inline" id="whUrl">…</code></div></div></div>
         <div class="check"><div class="ico ok">2</div><div class="body"><div class="t">Verify Token</div><div class="d">the value of your <code class="inline">META_VERIFY_TOKEN</code> env var (set on Render)</div></div></div>
-        <div class="check"><div class="ico ok">3</div><div class="body"><div class="t">Subscribe to fields</div><div class="d"><code class="inline">messages</code>, <code class="inline">messaging_postbacks</code></div></div></div>
+        <div class="check"><div class="ico ok">3</div><div class="body"><div class="t">Subscribe to fields</div><div class="d"><code class="inline">messages</code>, <code class="inline">messaging_postbacks</code>, <code class="inline">message_echoes</code></div></div></div>
       </div>
       <p class="muted" style="font-size:12px">Tokens and secrets are set as environment variables on Render, not here — a web dashboard is not a safe place to store them.</p>
+    </div>
+    <div class="panel">
+      <h2><span>Team alerts (Telegram)</span><button class="act" id="notifyTest">Send test alert</button></h2>
+      <p class="muted" style="margin-top:0">When the bot flags a conversation for a human it posts to your Telegram group. Set <code class="inline">TELEGRAM_BOT_TOKEN</code> and <code class="inline">TELEGRAM_CHAT_ID</code> on Render to switch this on.</p>
+      <div id="notifyStatus" class="muted" style="font-size:12px">…</div>
     </div>
   </section>
 </main>
@@ -378,9 +383,14 @@ function renderChecklist() {
     check(c.meta_page_token, "Meta Page Access Token", c.meta_page_token ? "set" : "META_PAGE_ACCESS_TOKEN not set — bot can't send replies"),
     check(c.meta_app_secret ? true : "warn", "Meta App Secret", c.meta_app_secret ? "set — webhook signatures verified" : "META_APP_SECRET not set — anyone could POST fake messages. Set it before going live."),
     check(c.meta_verify_token, "Meta Verify Token", c.meta_verify_token ? "set" : "META_VERIFY_TOKEN not set — webhook won't verify"),
+    check(c.telegram_notify ? true : "warn", "Team alerts (Telegram)", c.telegram_notify ? "set — the bot pings your group on every new handoff" : "TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID not set — no alerts when the bot needs a human"),
   ];
   $("#checklist").innerHTML = rows.join("");
   $("#setupChecklist").innerHTML = rows.join("");
+  const nb = $("#notifyStatus");
+  if (nb) nb.textContent = c.telegram_notify
+    ? "Connected. New handoffs post to your Telegram group."
+    : "Not set up yet — add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID on Render.";
 }
 function loadSetup() { renderChecklist(); }
 
@@ -404,6 +414,20 @@ $("#runSelftest").onclick = async () => {
     box.innerHTML = errState("Self-test request failed: " + e.message);
   }
   b.disabled = false; b.textContent = "Run self-test";
+};
+
+$("#notifyTest").onclick = async () => {
+  const b = $("#notifyTest"); b.disabled = true; b.textContent = "Sending…";
+  const box = $("#notifyStatus");
+  try {
+    const r = await api("/notify-test", { method: "POST" });
+    box.textContent = r.ok
+      ? "✓ Sent — check your Telegram group."
+      : "✕ " + (r.error || "Couldn't send.");
+  } catch (e) {
+    box.textContent = "✕ " + e.message;
+  }
+  b.disabled = false; b.textContent = "Send test alert";
 };
 
 // ---- status pill ----

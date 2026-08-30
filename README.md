@@ -130,6 +130,8 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
   team Business Suite inbox থেকে reply দিলে বট সেটা টের পায় (`message_echoes`) আর
   চুপই থাকে। শেষ human reply-র `BOT_RESUME_AFTER_MINUTES` (default 10) মিনিট পর
   বট নিজে থেকেই ওই thread-এ আবার reply শুরু করে — Resolve করার দরকার নেই।
+  নতুন handoff হলে **Telegram group-এ alert** যায় (`TELEGRAM_BOT_TOKEN` +
+  `TELEGRAM_CHAT_ID` সেট থাকলে; Setup ট্যাবে "Send test alert" বোতাম)।
 - **Conversations** — recent customer লিস্ট → ক্লিক করে পুরো চ্যাট দেখুন।
 - **Knowledge base** — "Extra knowledge" box-এ যা লেখেন সেটা বট authoritative ধরে
   (correction, current promo, one-off নোট)। নিচে স্টোর থেকে আসা live catalog দেখা
@@ -190,6 +192,7 @@ lib/shopClient.js        my-shop /api/bot/* client (cache + graceful fallback)
 lib/db.js                বটের Postgres: history, handoffs, settings, dashboard queries
 lib/metaSend.js          Messenger/Instagram Send API wrapper
 lib/adminApi.js          /api/admin/* — dashboard-এর JSON API
+lib/notify.js            escalate হলে Telegram group-এ alert
 lib/dashboardAuth.js     session-cookie auth (login/logout handlers + guards)
 public/login.html        styled sign-in page
 public/dashboard.html    dashboard UI (single self-contained file)
