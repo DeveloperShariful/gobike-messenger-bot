@@ -8,6 +8,8 @@ const {
   saveMessage,
   getRecentHistory,
   getSetting,
+  pauseThread,
+  isThreadPaused,
   runMigrations,
 } = require("./lib/db");
 const {
@@ -26,6 +28,10 @@ app.set("trust proxy", 1);
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const APP_SECRET = process.env.META_APP_SECRET;
+
+// After the bot hands a thread to a human, it stays quiet on that thread for
+// this many minutes, then picks it back up on its own.
+const RESUME_AFTER_MIN = Number(process.env.BOT_RESUME_AFTER_MINUTES) || 30;
 
 // Brute-force / flood protection.
 const dashboardLimiter = createRateLimiter({
@@ -181,12 +187,39 @@ async function getBotState() {
 }
 
 async function handleMessagingEvent(platform, event) {
+  // Echo of a message sent AS the Page. Our own Send API calls carry our
+  // app_id and we ignore them. A message a human typed in the Business Suite
+  // inbox has no app_id — treat that as a team member taking over: hush the
+  // bot on that thread and record their reply so the dashboard stays in sync.
+  if (event.message && event.message.is_echo) {
+    const customerId = event.recipient && event.recipient.id;
+    if (
+      !event.message.app_id &&
+      customerId &&
+      !alreadyProcessed(event.message.mid)
+    ) {
+      await pauseThread({
+        platform,
+        senderId: customerId,
+        reason: "A team member replied from the inbox",
+      }).catch(() => {});
+      if (typeof event.message.text === "string" && event.message.text.trim()) {
+        await saveMessage({
+          platform,
+          senderId: customerId,
+          role: "assistant",
+          content: event.message.text.trim(),
+        }).catch(() => {});
+      }
+    }
+    return;
+  }
+
   const senderId = event.sender && event.sender.id;
   if (!senderId) return;
 
-  // Ignore echoes of our own sent messages, delivery/read receipts, and
-  // anything without actual text (stickers/attachments-only for now).
-  if (event.message && event.message.is_echo) return;
+  // Skip delivery/read receipts and anything without actual text
+  // (stickers/attachments-only for now).
   if (!event.message || typeof event.message.text !== "string") return;
 
   const messageId = event.message.mid;
@@ -196,6 +229,22 @@ async function handleMessagingEvent(platform, event) {
   if (!userText) return;
 
   sendMarkSeen(senderId).catch(() => {});
+
+  // -------- Per-thread pause --------
+  // The bot handed this conversation to a human (or a human jumped in). Stay
+  // quiet and just log what the customer says; the pause lifts on its own
+  // after BOT_RESUME_AFTER_MINUTES and the bot picks the thread back up.
+  const paused = await isThreadPaused({
+    platform,
+    senderId,
+    resumeAfterMinutes: RESUME_AFTER_MIN,
+  }).catch(() => false);
+  if (paused) {
+    await saveMessage({ platform, senderId, role: "user", content: userText }).catch(
+      () => {}
+    );
+    return;
+  }
 
   // -------- Global on/off switch (dashboard) --------
   const botState = await getBotState();

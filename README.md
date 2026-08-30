@@ -41,7 +41,8 @@ handoff-এর জন্য নোট রেখে দেয়।
 1. Meta Dashboard → **Messenger → Settings → Webhooks** → "Add Callback URL"।
 2. Callback URL: `https://gobike-messenger-bot.onrender.com/webhook`
 3. Verify Token: আপনার `META_VERIFY_TOKEN`।
-4. Subscribe: `messages`, `messaging_postbacks`।
+4. Subscribe: `messages`, `messaging_postbacks`, `message_echoes`।
+   (`message_echoes` = team Business Suite থেকে reply দিলে বট বুঝে চুপ হয়ে যায়।)
 5. Instagram-এর জন্যও `messages` field-এ subscribe করুন।
 
 ### App Review
@@ -125,6 +126,10 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
 - **Overview** — ২৪ঘণ্টা/৭দিনের message count, customer সংখ্যা, খোলা handoff, স্টোর
   connection status।
 - **Handoffs** — যেসব conversation human দরকার। "Resolve" দিয়ে কেটে দিন।
+  বট escalate করলে **ওই একটা thread-এ** নিজে থেকে চুপ হয়ে যায় (পুরো বট বন্ধ না)।
+  team Business Suite inbox থেকে reply দিলে বট সেটা টের পায় (`message_echoes`) আর
+  চুপই থাকে। `BOT_RESUME_AFTER_MINUTES` (default 30) মিনিট কেউ কিছু না করলে বট
+  নিজে থেকেই ওই thread-এ আবার reply শুরু করে — Resolve করার দরকার নেই।
 - **Conversations** — recent customer লিস্ট → ক্লিক করে পুরো চ্যাট দেখুন।
 - **Knowledge base** — "Extra knowledge" box-এ যা লেখেন সেটা বট authoritative ধরে
   (correction, current promo, one-off নোট)। নিচে স্টোর থেকে আসা live catalog দেখা

@@ -28,6 +28,18 @@ CREATE TABLE IF NOT EXISTS bot_handoffs (
   resolved    BOOLEAN NOT NULL DEFAULT false
 );
 
+-- Per-conversation pause. When the bot hands a thread to a human (or a
+-- human replies from the Business Suite inbox), a row goes in here and the
+-- bot stays quiet on that thread. The pause lapses on its own after
+-- BOT_RESUME_AFTER_MINUTES (checked in code), so no cleanup job is needed.
+CREATE TABLE IF NOT EXISTS bot_thread_pauses (
+  platform    TEXT NOT NULL,
+  sender_id   TEXT NOT NULL,
+  reason      TEXT NOT NULL DEFAULT '',
+  paused_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (platform, sender_id)
+);
+
 -- Key/value settings the owner controls from the dashboard: the global
 -- on/off switch, the extra knowledge-base text, and the message sent while
 -- the bot is switched off.
