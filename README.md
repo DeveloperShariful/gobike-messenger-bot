@@ -89,10 +89,17 @@ my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা rea
 > riding-law, spare parts, retailer address। gobike.au-র পেজ বদলালে এই ফাইল আপডেট
 > করতে হবে।
 >
+> KB-তে buying-decision content-ও আছে: box-এ কী আসে (charger, toolkit, ৭টা colour
+> sticker kit), petrol bike vs GoBike, সস্তা marketplace bike vs GoBike, "grows with
+> your child", value story, প্রতিটা model-এর character।
+>
 > Persona: বট এখন KB-তে থাকা প্রশ্নের **সরাসরি confident উত্তর** দেয়, everyday
-> সিদ্ধান্ত নেয় (bike suggest, "এটা normal" vs "warranty দরকার", delivery estimate)
-> আর covered থাকার আশ্বাস দেয়। শুধু আসল কঠিন ১% — রাগ/অভিযোগ, payment/refund action,
-> দামি warranty approval, partnership pitch — human-এ যায়।
+> সিদ্ধান্ত নেয় (bike suggest, "এটা normal" vs "warranty দরকার", delivery estimate),
+> covered থাকার আশ্বাস দেয়, আর কেউ কিনতে চাইলে **helpful ভাবে সাহায্য করে** (recommend
+> + value + link) — কিন্তু pushy না, fake urgency না, আর website-এর "fastest/best on
+> the market" superlative বলে না (proof ছাড়া ACL ঝুঁকি)। শুধু আসল কঠিন ১% —
+> রাগ/অভিযোগ, payment/refund action, দামি warranty approval, partnership pitch —
+> human-এ যায়।
 
 ---
 
