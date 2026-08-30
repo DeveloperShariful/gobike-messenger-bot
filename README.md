@@ -117,9 +117,10 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
 
 ## Dashboard
 
-`https://gobike-messenger-bot.onrender.com/dashboard` — `DASHBOARD_USER` /
-`DASHBOARD_PASSWORD` দিয়ে লগইন (Basic Auth)। দুটো env var সেট না থাকলে dashboard
-বন্ধ থাকে।
+`https://gobike-messenger-bot.onrender.com/dashboard` — `/login` styled sign-in
+পেজে `DASHBOARD_USER` / `DASHBOARD_PASSWORD` দিয়ে লগইন। session cookie ১২ ঘণ্টা
+থাকে, header-এ "Log out" বোতাম। দুটো env var সেট না থাকলে dashboard বন্ধ থাকে।
+(ঐচ্ছিক `SESSION_SECRET` — না দিলে password থেকে derive হয়।)
 
 - **Overview** — ২৪ঘণ্টা/৭দিনের message count, customer সংখ্যা, খোলা handoff, স্টোর
   connection status।
@@ -155,8 +156,9 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
   বিশ্বাস করবে (কেউ POST করে বট দিয়ে আজেবাজে reply পাঠাতে পারবে)। Setup ট্যাবে এটা
   লাল দেখাবে যদি সেট না থাকে।
 - **Dashboard password শক্ত দিন** (`DASHBOARD_PASSWORD`)। `/dashboard` আর
-  `/api/admin/*` Basic Auth + rate limit (৫ মিনিটে ৩০০ request/IP) দিয়ে protected।
-  `/webhook`-ও rate-limited (মিনিটে ৬০০/IP)।
+  `/api/admin/*` session-cookie auth + rate limit (৫ মিনিটে ৩০০ request/IP) দিয়ে
+  protected। `/login` POST আলাদা tight limit (১৫ মিনিটে ২০ চেষ্টা/IP)। cookie
+  HttpOnly + SameSite=Lax + HTTPS-এ Secure। `/webhook`-ও rate-limited (মিনিটে ৬০০/IP)।
 - সব traffic HTTPS (Render/Vercel নিজে থেকেই)। বটের DB-তে শুধু conversation/handoff/
   settings — কোনো payment বা customer password নেই।
 
@@ -183,7 +185,8 @@ lib/shopClient.js        my-shop /api/bot/* client (cache + graceful fallback)
 lib/db.js                বটের Postgres: history, handoffs, settings, dashboard queries
 lib/metaSend.js          Messenger/Instagram Send API wrapper
 lib/adminApi.js          /api/admin/* — dashboard-এর JSON API
-lib/dashboardAuth.js     Basic Auth middleware
+lib/dashboardAuth.js     session-cookie auth (login/logout handlers + guards)
+public/login.html        styled sign-in page
 public/dashboard.html    dashboard UI (single self-contained file)
 sql/schema.sql           bot_conversations / bot_handoffs / bot_settings
 .env.example             সব environment variable

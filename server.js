@@ -10,7 +10,12 @@ const {
   getSetting,
   runMigrations,
 } = require("./lib/db");
-const { dashboardAuth } = require("./lib/dashboardAuth");
+const {
+  requirePage,
+  requireApi,
+  handleLogin,
+  handleLogout,
+} = require("./lib/dashboardAuth");
 const adminApi = require("./lib/adminApi");
 const { createRateLimiter } = require("./lib/rateLimit");
 
@@ -32,6 +37,12 @@ const webhookLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 600,
   message: "Too many requests.",
+});
+// Tighter limit on the sign-in endpoint to slow password guessing.
+const loginLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Too many sign-in attempts. Try again in about 15 minutes.",
 });
 
 // Keep the raw body around so we can verify Meta's X-Hub-Signature-256.
@@ -58,11 +69,18 @@ app.get("/", (req, res) =>
     )
 );
 
-// -------- Dashboard (rate-limited + Basic Auth) --------
-app.get("/dashboard", dashboardLimiter, dashboardAuth, (req, res) =>
+// -------- Dashboard sign-in (form-based session, styled page) --------
+app.get("/login", dashboardLimiter, (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "login.html"))
+);
+app.post("/login", loginLimiter, handleLogin);
+app.post("/logout", handleLogout);
+
+// -------- Dashboard (rate-limited + session auth) --------
+app.get("/dashboard", dashboardLimiter, requirePage, (req, res) =>
   res.sendFile(path.join(__dirname, "public", "dashboard.html"))
 );
-app.use("/api/admin", dashboardLimiter, dashboardAuth, adminApi);
+app.use("/api/admin", dashboardLimiter, requireApi, adminApi);
 
 // -------- Webhook verification (Meta calls this once when you save the
 // webhook URL in the App Dashboard) --------

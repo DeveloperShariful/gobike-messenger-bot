@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign in · GoBike Bot</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --panel: #ffffff;
+    --panel-2: #fafbfc;
+    --border: #e4e7eb;
+    --text: #1a1d21;
+    --muted: #697586;
+    --accent: #1f7a4d;
+    --accent-2: #17603b;
+    --danger: #b4232c;
+    --danger-soft: #fbecec;
+    --shadow: 0 1px 2px rgba(16,24,40,.04), 0 10px 40px rgba(16,24,40,.10);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101317; --panel: #191d23; --panel-2: #1f242b; --border: #2b313a;
+      --text: #e9ebee; --muted: #98a2b3; --accent: #57cf93; --accent-2: #7bd9ab;
+      --danger: #f2868d; --danger-soft: #3a1f22;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 48px rgba(0,0,0,.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 380px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 30px 28px 26px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; margin-bottom: 22px; }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent);
+    color: #fff; font-weight: 800; font-size: 15px;
+    display: grid; place-items: center; letter-spacing: -.02em;
+  }
+  .brand .name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  h1 { font-size: 16px; margin: 0 0 3px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 20px; }
+  label { display: block; font-weight: 600; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  .field { margin-bottom: 14px; }
+  input {
+    width: 100%; padding: 10px 12px; font: inherit; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  button {
+    width: 100%; margin-top: 4px; padding: 11px 14px; font: inherit; font-weight: 700;
+    color: #fff; background: var(--accent); border: 1px solid var(--accent);
+    border-radius: 10px; cursor: pointer;
+  }
+  button:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  button:disabled { opacity: .6; cursor: default; }
+  .err {
+    display: none; margin: 0 0 14px; padding: 9px 12px; font-size: 12.5px;
+    color: var(--danger); background: var(--danger-soft);
+    border: 1px solid transparent; border-radius: 10px;
+  }
+  .err.show { display: block; }
+  .foot { margin-top: 18px; text-align: center; font-size: 11.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <form class="card" id="form" autocomplete="on">
+    <div class="brand">
+      <div class="mark">G</div>
+      <div class="name">GoBike Bot</div>
+    </div>
+    <h1>Sign in to the dashboard</h1>
+    <p class="sub">Handoffs, conversations, knowledge base and settings.</p>
+
+    <div class="err" id="err"></div>
+
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+    </div>
+
+    <button type="submit" id="btn">Sign in</button>
+    <div class="foot">GoBike Australia · staff only</div>
+  </form>
+
+<script>
+  const form = document.getElementById("form");
+  const err = document.getElementById("err");
+  const btn = document.getElementById("btn");
+  const params = new URLSearchParams(location.search);
+  const next = params.get("next");
+
+  const showErr = (msg) => { err.textContent = msg; err.classList.add("show"); };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    err.classList.remove("show");
+    btn.disabled = true;
+    btn.textContent = "Signing in…";
+    try {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value,
+        }),
+      });
+      if (res.ok) {
+        location.href = next && next.startsWith("/") ? next : "/dashboard";
+        return;
+      }
+      if (res.status === 429) showErr("Too many attempts. Wait a few minutes and try again.");
+      else if (res.status === 503) showErr("Dashboard isn't configured yet. Set DASHBOARD_USER and DASHBOARD_PASSWORD.");
+      else showErr("Wrong username or password.");
+    } catch (_) {
+      showErr("Couldn't reach the server. Check your connection and try again.");
+    }
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+  });
+</script>
+</body>
+</html>

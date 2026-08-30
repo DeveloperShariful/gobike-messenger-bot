@@ -189,6 +189,7 @@
   <span class="logo">GoBike Bot</span>
   <span id="statusPill" class="pill"><span class="dot"></span><span id="pillText">loading…</span></span>
   <span class="right" id="freshness"></span>
+  <button id="logoutBtn" class="act" style="margin-left:14px">Log out</button>
 </header>
 <nav>
   <button data-tab="overview" class="active">Overview</button>
@@ -300,6 +301,10 @@ async function api(path, opts) {
     headers: opts && opts.body ? { "Content-Type": "application/json" } : undefined,
     ...opts,
   });
+  if (res.status === 401) {
+    location.href = "/login?next=" + encodeURIComponent(location.pathname);
+    throw new Error("auth");
+  }
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
@@ -318,6 +323,12 @@ const check = (state, title, desc) => {
 };
 
 let HEALTH = null;
+
+// ---- logout ----
+$("#logoutBtn").onclick = async () => {
+  try { await fetch("/logout", { method: "POST" }); } catch (_) {}
+  location.href = "/login";
+};
 
 // ---- tabs ----
 document.querySelectorAll("nav button").forEach((b) => {
