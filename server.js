@@ -2,7 +2,12 @@ require("dotenv").config();
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
-const { sendTextMessage, sendTypingOn, sendMarkSeen } = require("./lib/metaSend");
+const {
+  sendTextMessage,
+  sendTypingOn,
+  sendMarkSeen,
+  fetchImageBlock,
+} = require("./lib/metaSend");
 const { generateReply } = require("./lib/claudeAgent");
 const {
   saveMessage,
@@ -12,6 +17,9 @@ const {
   isThreadPaused,
   saveReferral,
   getReferral,
+  savePendingImages,
+  getPendingImages,
+  clearPendingImages,
   runMigrations,
 } = require("./lib/db");
 const {
@@ -145,8 +153,8 @@ function alreadyProcessed(id) {
   return false;
 }
 
-// Don't spam the "I can't open attachments" line when a customer sends a burst
-// of photos. One ack per thread per 10 minutes is plenty.
+// Don't spam the attachment acknowledgement when a customer sends a burst of
+// photos. One ack per thread per 10 minutes is plenty.
 const attachmentAckAt = new Map();
 function recentlyAckedAttachment(senderId) {
   const last = attachmentAckAt.get(senderId) || 0;
@@ -154,6 +162,21 @@ function recentlyAckedAttachment(senderId) {
   attachmentAckAt.set(senderId, Date.now());
   if (attachmentAckAt.size > 2000) attachmentAckAt.clear();
   return false;
+}
+
+// Pull the image attachments off a Messenger/Instagram message and fetch each
+// one (the URLs die quickly). Returns Anthropic base64 image-source objects.
+async function fetchMessageImages(message) {
+  const urls = ((message && message.attachments) || [])
+    .filter((a) => a && a.type === "image" && a.payload && a.payload.url)
+    .map((a) => a.payload.url)
+    .slice(0, 3);
+  const sources = [];
+  for (const url of urls) {
+    const s = await fetchImageBlock(url).catch(() => null);
+    if (s) sources.push(s);
+  }
+  return { sources, attempted: urls.length };
 }
 
 // -------- Incoming messages (Messenger + Instagram share this shape) --------
@@ -273,11 +296,21 @@ async function handleMessagingEvent(platform, event) {
       return;
     }
 
-    const ack = isReferralOnly
-      ? "Hey! Thanks for checking out GoBike - what can I help you with?"
-      : "Thanks for sending that through! I can't open attachments here - pop your " +
-        "question in a message and I'll help. For a warranty claim, the form at " +
-        "gobike.au/warranty takes photos and video.";
+    let ack = "Hey! Thanks for checking out GoBike - what can I help you with?";
+    if (isAttachmentOnly) {
+      // Grab the image(s) now (URLs expire) and stash them, so when the
+      // customer types their question next the bot can look at what they sent.
+      const { sources } = await fetchMessageImages(event.message);
+      if (sources.length) {
+        await savePendingImages({ platform, senderId, images: sources }).catch(() => {});
+        ack = "Got your photo! What would you like to know about it?";
+      } else {
+        ack =
+          "Thanks for that! I can't open that kind of attachment - pop your " +
+          "question in a message and I'll help. For a warranty claim, the form " +
+          "at gobike.au/warranty takes photos and video.";
+      }
+    }
     await sendMarkSeen(senderId).catch(() => {});
     await sendTextMessage({ recipientId: senderId, text: ack }).catch(() => {});
     await saveMessage({ platform, senderId, role: "assistant", content: ack }).catch(
@@ -343,12 +376,25 @@ async function handleMessagingEvent(platform, event) {
   try {
     const history = await getRecentHistory({ platform, senderId });
     const adContext = await getReferral({ platform, senderId }).catch(() => null);
+
+    // Images: any attached to this message, plus any the customer sent just
+    // before typing their question (pre-fetched and stashed).
+    const { sources: freshImages, attempted } = await fetchMessageImages(event.message);
+    const pendingImages = await getPendingImages({ platform, senderId }).catch(() => []);
+    const imageSources = [...freshImages, ...pendingImages].slice(0, 3);
+    const imagesFailed = attempted > 0 && freshImages.length === 0;
+    if (pendingImages.length) {
+      await clearPendingImages({ platform, senderId }).catch(() => {});
+    }
+
     const { replyText, escalated } = await generateReply({
       platform,
       senderId,
       userText,
       history,
       adContext,
+      imageSources,
+      imagesFailed,
     });
 
     await sendTextMessage({ recipientId: senderId, text: replyText });

@@ -55,6 +55,18 @@ CREATE TABLE IF NOT EXISTS bot_thread_referrals (
   PRIMARY KEY (platform, sender_id)
 );
 
+-- Images a customer sent before typing their question. Meta attachment URLs
+-- expire fast, so we fetch the image right away and stash it here (as an
+-- Anthropic base64 image source). The next text message within a few minutes
+-- picks these up, then the row is cleared.
+CREATE TABLE IF NOT EXISTS bot_thread_pending_images (
+  platform    TEXT NOT NULL,
+  sender_id   TEXT NOT NULL,
+  images      JSONB NOT NULL DEFAULT '[]',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (platform, sender_id)
+);
+
 -- Key/value settings the owner controls from the dashboard: the global
 -- on/off switch, the extra knowledge-base text, and the message sent while
 -- the bot is switched off.

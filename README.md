@@ -96,6 +96,10 @@ my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা rea
 > sticker kit), petrol bike vs GoBike, সস্তা marketplace bike vs GoBike, "grows with
 > your child", value story, প্রতিটা model-এর character।
 >
+> **Image:** customer ছবি + প্রশ্ন একসাথে পাঠালে বট ছবিটা দেখে উত্তর দেয় (কোন model,
+> screenshot থেকে order number, warranty-র জন্য damage triage)। ছবি + কোনো text না →
+> শুধু "attachment খুলতে পারি না, লিখে দিন" ack (token খরচ বাঁচে)। ছবি প্রতি ~$0.007।
+>
 > Persona: বট এখন KB-তে থাকা প্রশ্নের **সরাসরি confident উত্তর** দেয়, everyday
 > সিদ্ধান্ত নেয় (bike suggest, "এটা normal" vs "warranty দরকার", delivery estimate),
 > covered থাকার আশ্বাস দেয়, আর কেউ কিনতে চাইলে **helpful ভাবে সাহায্য করে** (recommend
