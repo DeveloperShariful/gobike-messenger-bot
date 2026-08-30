@@ -128,8 +128,8 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
 - **Handoffs** — যেসব conversation human দরকার। "Resolve" দিয়ে কেটে দিন।
   বট escalate করলে **ওই একটা thread-এ** নিজে থেকে চুপ হয়ে যায় (পুরো বট বন্ধ না)।
   team Business Suite inbox থেকে reply দিলে বট সেটা টের পায় (`message_echoes`) আর
-  চুপই থাকে। `BOT_RESUME_AFTER_MINUTES` (default 30) মিনিট কেউ কিছু না করলে বট
-  নিজে থেকেই ওই thread-এ আবার reply শুরু করে — Resolve করার দরকার নেই।
+  চুপই থাকে। শেষ human reply-র `BOT_RESUME_AFTER_MINUTES` (default 10) মিনিট পর
+  বট নিজে থেকেই ওই thread-এ আবার reply শুরু করে — Resolve করার দরকার নেই।
 - **Conversations** — recent customer লিস্ট → ক্লিক করে পুরো চ্যাট দেখুন।
 - **Knowledge base** — "Extra knowledge" box-এ যা লেখেন সেটা বট authoritative ধরে
   (correction, current promo, one-off নোট)। নিচে স্টোর থেকে আসা live catalog দেখা

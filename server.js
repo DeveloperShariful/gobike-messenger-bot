@@ -29,9 +29,10 @@ app.set("trust proxy", 1);
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const APP_SECRET = process.env.META_APP_SECRET;
 
-// After the bot hands a thread to a human, it stays quiet on that thread for
-// this many minutes, then picks it back up on its own.
-const RESUME_AFTER_MIN = Number(process.env.BOT_RESUME_AFTER_MINUTES) || 30;
+// After the bot hands a thread to a human (or a team member replies from the
+// inbox), it stays quiet on that thread for this many minutes past the last
+// human reply, then picks it back up on its own.
+const RESUME_AFTER_MIN = Number(process.env.BOT_RESUME_AFTER_MINUTES) || 10;
 
 // Brute-force / flood protection.
 const dashboardLimiter = createRateLimiter({
