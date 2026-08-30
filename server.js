@@ -313,17 +313,31 @@ async function handleMessagingEvent(platform, event) {
 
     let ack = "Hey! Thanks for checking out GoBike - what can I help you with?";
     if (isAttachmentOnly) {
-      // Grab the image(s) now (URLs expire) and stash them, so when the
-      // customer types their question next the bot can look at what they sent.
-      const { sources } = await fetchMessageImages(event.message);
-      if (sources.length) {
-        await savePendingImages({ platform, senderId, images: sources }).catch(() => {});
-        ack = "Got your photo! What would you like to know about it?";
-      } else {
+      const atts = event.message.attachments || [];
+      const isStoryMention = atts.some((a) => a && a.type === "story_mention");
+      const isShare = atts.some((a) => a && (a.type === "share" || a.type === "ig_reel" || a.type === "reel"));
+      if (isStoryMention) {
+        // Someone tagged GoBike in their Instagram story.
         ack =
-          "Thanks for that! I can't open that kind of attachment - pop your " +
-          "question in a message and I'll help. For a warranty claim, the form " +
-          "at gobike.au/warranty takes photos and video.";
+          "Thanks so much for the shout-out! 🙌 If there's anything I can help " +
+          "you with about the bikes, just ask.";
+      } else if (isShare) {
+        ack =
+          "Thanks for sharing that through! If you've got a question about it, " +
+          "type it out and I'll help.";
+      } else {
+        // Grab the image(s) now (URLs expire) and stash them, so when the
+        // customer types their question next the bot can look at what they sent.
+        const { sources } = await fetchMessageImages(event.message);
+        if (sources.length) {
+          await savePendingImages({ platform, senderId, images: sources }).catch(() => {});
+          ack = "Got your photo! What would you like to know about it?";
+        } else {
+          ack =
+            "Thanks for that! I can't open that kind of attachment - pop your " +
+            "question in a message and I'll help. For a warranty claim, the form " +
+            "at gobike.au/warranty takes photos and video.";
+        }
       }
     }
     await sendMarkSeen(senderId).catch(() => {});
@@ -342,6 +356,12 @@ async function handleMessagingEvent(platform, event) {
 
   const userText = event.message.text.trim();
   if (!userText) return;
+
+  // Instagram: is this a reply to one of our stories, or to an earlier message?
+  const replyTo = event.message.reply_to || null;
+  const replyContext = replyTo && replyTo.story
+    ? "the customer is replying to one of GoBike's Instagram stories"
+    : null;
 
   sendMarkSeen(senderId).catch(() => {});
 
@@ -410,6 +430,7 @@ async function handleMessagingEvent(platform, event) {
       adContext,
       imageSources,
       imagesFailed,
+      replyContext,
     });
 
     await sendTextMessage({ recipientId: senderId, text: replyText, quickReplies });
