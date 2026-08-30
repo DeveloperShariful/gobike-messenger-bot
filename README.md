@@ -98,7 +98,9 @@ my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা rea
 >
 > **Image:** customer ছবি + প্রশ্ন একসাথে পাঠালে বট ছবিটা দেখে উত্তর দেয় (কোন model,
 > screenshot থেকে order number, warranty-র জন্য damage triage)। ছবি + কোনো text না →
-> শুধু "attachment খুলতে পারি না, লিখে দিন" ack (token খরচ বাঁচে)। ছবি প্রতি ~$0.007।
+> শুধু "attachment খুলতে পারি না, লিখে দিন" ack (token খরচ বাঁচে)। একটা phone ছবি
+> Sonnet 5-এ ~2,700 visual token ≈ **$0.005** (formula: ceil(w/28)×ceil(h/28)
+> tokens; Sonnet 5 = high-res tier, max ~4,784 token/ছবি ≈ $0.0096)।
 >
 > Persona: বট এখন KB-তে থাকা প্রশ্নের **সরাসরি confident উত্তর** দেয়, everyday
 > সিদ্ধান্ত নেয় (bike suggest, "এটা normal" vs "warranty দরকার", delivery estimate),
