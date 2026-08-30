@@ -38,6 +38,20 @@ app.set("trust proxy", 1);
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const APP_SECRET = process.env.META_APP_SECRET;
+// Our own Meta app id. Used to tell the bot's own message echoes apart from a
+// message a human sent from the Business Suite / Page inbox (which carries a
+// different app_id, often the inbox app id 26390203743090, sometimes none).
+const OUR_APP_ID = String(process.env.META_APP_ID || "");
+const PAGE_INBOX_APP_ID = "26390203743090";
+
+// True if this echo came from a human in the inbox (or any other app/tool),
+// not from our own Send API call.
+function echoIsHumanTakeover(msg) {
+  if (!msg || !msg.is_echo) return false;
+  const appId = String(msg.app_id || "");
+  if (OUR_APP_ID) return appId !== OUR_APP_ID; // precise: anything not us
+  return !appId || appId === PAGE_INBOX_APP_ID; // best-effort without META_APP_ID
+}
 
 // After the bot hands a thread to a human (or a team member replies from the
 // inbox), it stays quiet on that thread for this many minutes past the last
@@ -225,13 +239,14 @@ async function getBotState() {
 
 async function handleMessagingEvent(platform, event) {
   // Echo of a message sent AS the Page. Our own Send API calls carry our
-  // app_id and we ignore them. A message a human typed in the Business Suite
-  // inbox has no app_id — treat that as a team member taking over: hush the
-  // bot on that thread and record their reply so the dashboard stays in sync.
+  // app_id and we ignore them. A message a human sent from the Business Suite /
+  // Page inbox carries a different app_id (the inbox app id, or none) — treat
+  // that as a team member taking over: hush the bot on that thread and record
+  // their reply so the dashboard stays in sync.
   if (event.message && event.message.is_echo) {
     const customerId = event.recipient && event.recipient.id;
     if (
-      !event.message.app_id &&
+      echoIsHumanTakeover(event.message) &&
       customerId &&
       !alreadyProcessed(event.message.mid)
     ) {

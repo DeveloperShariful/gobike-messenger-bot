@@ -34,6 +34,8 @@ handoff-এর জন্য নোট রেখে দেয়।
    - এই একই টোকেন Messenger আর Instagram DM দুটোর জন্যই কাজ করে, যদি Instagram
      professional account সেই Page-এর সাথে link করা থাকে।
 4. **App Settings → Basic** → **App Secret** কপি করুন → `META_APP_SECRET`।
+   একই পেজ থেকে **App ID** কপি করুন → `META_APP_ID` (ঐচ্ছিক কিন্তু ভালো — বট
+   নিজের পাঠানো message আর Business Suite থেকে মানুষের reply পার্থক্য করতে পারে)।
 5. নিজে একটা random string বানান (যেমন `gobike_wh_9f8x...`) → `META_VERIFY_TOKEN`।
    এটা `.env` আর Meta dashboard — দুই জায়গায় বসাতে হবে।
 
