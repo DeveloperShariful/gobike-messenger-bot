@@ -402,7 +402,7 @@ async function handleMessagingEvent(platform, event) {
       await clearPendingImages({ platform, senderId }).catch(() => {});
     }
 
-    const { replyText, escalated } = await generateReply({
+    const { replyText, escalated, quickReplies } = await generateReply({
       platform,
       senderId,
       userText,
@@ -412,7 +412,7 @@ async function handleMessagingEvent(platform, event) {
       imagesFailed,
     });
 
-    await sendTextMessage({ recipientId: senderId, text: replyText });
+    await sendTextMessage({ recipientId: senderId, text: replyText, quickReplies });
 
     await saveMessage({ platform, senderId, role: "user", content: userText });
     await saveMessage({
