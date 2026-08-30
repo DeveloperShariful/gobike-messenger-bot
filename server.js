@@ -451,7 +451,9 @@ async function handleMessagingEvent(platform, event) {
     const { sources: freshImages, attempted } = await fetchMessageImages(event.message);
     const pendingImages = await getPendingImages({ platform, senderId }).catch(() => []);
     const imageSources = [...freshImages, ...pendingImages].slice(0, 3);
-    const imagesFailed = attempted > 0 && freshImages.length === 0;
+    // "failed" only if the customer sent an image and we ended up with NOTHING
+    // to show the model (not just a failed re-fetch when we have a stashed one).
+    const imagesFailed = attempted > 0 && imageSources.length === 0;
     if (pendingImages.length) {
       await clearPendingImages({ platform, senderId }).catch(() => {});
     }
