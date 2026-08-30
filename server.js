@@ -204,10 +204,11 @@ function alreadyProcessed(id) {
 // Don't spam the attachment acknowledgement when a customer sends a burst of
 // photos. One ack per thread per 10 minutes is plenty.
 const attachmentAckAt = new Map();
-function recentlyAckedAttachment(senderId) {
-  const last = attachmentAckAt.get(senderId) || 0;
+function recentlyAckedAttachment(platform, senderId) {
+  const key = `${platform}:${senderId}`;
+  const last = attachmentAckAt.get(key) || 0;
   if (Date.now() - last < 10 * 60 * 1000) return true;
-  attachmentAckAt.set(senderId, Date.now());
+  attachmentAckAt.set(key, Date.now());
   if (attachmentAckAt.size > 2000) attachmentAckAt.clear();
   return false;
 }
@@ -227,6 +228,53 @@ async function fetchMessageImages(message) {
   return { sources, attempted: urls.length };
 }
 
+// Process one conversation's events strictly one at a time, in arrival order.
+// Meta delivers a burst of quick bubbles ("hi" / "I've got a 16" / "brakes are
+// squealing") as near-simultaneous webhook calls; without this each one would
+// read getRecentHistory before the others had saved anything and the bot would
+// fire several disjoint replies (and could escalate twice). In-memory promise
+// chain per conversation — correct for a single-instance deployment.
+const eventQueues = new Map();
+
+function conversationKey(platform, event) {
+  const id =
+    event.message && event.message.is_echo
+      ? event.recipient && event.recipient.id
+      : event.sender && event.sender.id;
+  return id ? `${platform}:${id}` : null;
+}
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+  });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+}
+
+function enqueueEvent(platform, event) {
+  const run = () =>
+    withTimeout(
+      handleMessagingEvent(platform, event),
+      120000,
+      "handleMessagingEvent"
+    ).catch((err) => console.error("Error handling messaging event:", err));
+
+  const key = conversationKey(platform, event);
+  if (!key) {
+    run();
+    return;
+  }
+  const next = (eventQueues.get(key) || Promise.resolve()).then(run, run);
+  eventQueues.set(key, next);
+  next.finally(() => {
+    if (eventQueues.get(key) === next) eventQueues.delete(key);
+  });
+}
+
 // -------- Incoming messages (Messenger + Instagram share this shape) --------
 app.post("/webhook", webhookLimiter, verifySignature, async (req, res) => {
   // Ack immediately — Meta expects a fast 200, we do the real work after.
@@ -239,9 +287,7 @@ app.post("/webhook", webhookLimiter, verifySignature, async (req, res) => {
 
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
-      handleMessagingEvent(platform, event).catch((err) =>
-        console.error("Error handling messaging event:", err)
-      );
+      enqueueEvent(platform, event);
     }
   }
 });
@@ -337,7 +383,7 @@ async function handleMessagingEvent(platform, event) {
       : event.message.mid;
     if (alreadyProcessed(mid)) return;
     if (isAttachmentOnly && !event.message.attachments) return; // delivery/read receipt
-    if (isAttachmentOnly && recentlyAckedAttachment(senderId)) return;
+    if (isAttachmentOnly && recentlyAckedAttachment(platform, senderId)) return;
 
     const st = await getBotState();
     if (!st.enabled) return;
@@ -346,6 +392,18 @@ async function handleMessagingEvent(platform, event) {
     }
 
     let ack = "Hey! Thanks for checking out GoBike - what can I help you with?";
+    if (isReferralOnly) {
+      const adTitle = String(
+        (referral.ads_context_data && referral.ads_context_data.ad_title) || ""
+      )
+        .trim()
+        .slice(0, 80);
+      if (adTitle) {
+        ack =
+          `Hey! Thanks for clicking through on "${adTitle}" - happy to answer ` +
+          `anything about it. What would you like to know?`;
+      }
+    }
     if (isAttachmentOnly) {
       const atts = event.message.attachments || [];
       const isStoryMention = atts.some((a) => a && a.type === "story_mention");
@@ -442,8 +500,15 @@ async function handleMessagingEvent(platform, event) {
 
   sendTypingOn(senderId).catch(() => {});
 
+  let userSaved = false;
   try {
     const history = await getRecentHistory({ platform, senderId });
+    // Persist the customer's message straight away, before the (slower) reply
+    // is generated — so a mid-generation crash can't lose it, and it always
+    // sorts ahead of the reply in history.
+    await saveMessage({ platform, senderId, role: "user", content: userText });
+    userSaved = true;
+
     const adContext = await getReferral({ platform, senderId }).catch(() => null);
 
     // Images: any attached to this message, plus any the customer sent just
@@ -471,7 +536,6 @@ async function handleMessagingEvent(platform, event) {
 
     await botSend({ recipientId: senderId, text: replyText, quickReplies });
 
-    await saveMessage({ platform, senderId, role: "user", content: userText });
     await saveMessage({
       platform,
       senderId,
@@ -484,11 +548,17 @@ async function handleMessagingEvent(platform, event) {
     }
   } catch (err) {
     console.error("Failed to generate/send reply:", err);
-    // Still record the customer's message so it shows up in the dashboard
-    // (someone messaged during an outage and needs following up).
-    await saveMessage({ platform, senderId, role: "user", content: userText }).catch(
-      () => {}
-    );
+    // Make sure the customer's message is on record even if we fell over before
+    // saving it (someone messaged during an outage — the team needs to see it
+    // in the dashboard).
+    if (!userSaved) {
+      await saveMessage({
+        platform,
+        senderId,
+        role: "user",
+        content: userText,
+      }).catch(() => {});
+    }
     await botSend({
       recipientId: senderId,
       text:
