@@ -82,9 +82,17 @@ my-shop রিপোতে `app/api/bot/` ফোল্ডারে ৩টা rea
 4. যাচাই: `curl https://gobike.au/api/bot/catalog` → `401` (key ছাড়া)।
    `curl -H "x-api-key: <KEY>" https://gobike.au/api/bot/catalog` → product JSON।
 
-> Returns/warranty/shipping-এর নীতিমালার লেখা এখনো বটের ভেতরে curated আছে
-> ([lib/knowledgeBase.js](lib/knowledgeBase.js) → `STATIC_POLICY_SECTIONS`) কারণ ওগুলো
-> স্টোরে structured ভাবে নেই। দাম/স্টক বদলালে কিছু করতে হয় না — live আসে।
+> দাম/স্টক live আসে — কিছু করতে হয় না। বাকি সব curated থাকে বটের ভেতরে
+> ([lib/knowledgeBase.js](lib/knowledgeBase.js) → `STATIC_POLICY_SECTIONS`): প্রতিটা
+> মডেলের full spec, troubleshooting (charger/motor/throttle/brake/puncture/chain
+> step-by-step), delivery, payment (card/PayPal/Afterpay/Zip), returns, warranty,
+> riding-law, spare parts, retailer address। gobike.au-র পেজ বদলালে এই ফাইল আপডেট
+> করতে হবে।
+>
+> Persona: বট এখন KB-তে থাকা প্রশ্নের **সরাসরি confident উত্তর** দেয়, everyday
+> সিদ্ধান্ত নেয় (bike suggest, "এটা normal" vs "warranty দরকার", delivery estimate)
+> আর covered থাকার আশ্বাস দেয়। শুধু আসল কঠিন ১% — রাগ/অভিযোগ, payment/refund action,
+> দামি warranty approval, partnership pitch — human-এ যায়।
 
 ---
 
@@ -187,7 +195,7 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
 server.js                Express server, webhook + dashboard mount, bot on/off gate
 lib/claudeAgent.js       Claude API call + tool-use loop (order lookup, escalation), prompt cache
 lib/systemPrompt.js      বট-এর persona + instructions (honest-if-asked)
-lib/knowledgeBase.js     live catalog → plain text + curated policy sections + kb_override
+lib/knowledgeBase.js     live catalog → plain text + big curated KB (specs, troubleshooting, policies) + kb_override
 lib/shopClient.js        my-shop /api/bot/* client (cache + graceful fallback)
 lib/db.js                বটের Postgres: history, handoffs, settings, dashboard queries
 lib/metaSend.js          Messenger/Instagram Send API wrapper
