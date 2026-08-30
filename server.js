@@ -8,7 +8,7 @@ const {
   sendMarkSeen,
   fetchImageBlock,
 } = require("./lib/metaSend");
-const { generateReply } = require("./lib/claudeAgent");
+const { generateReply, flagForHuman } = require("./lib/claudeAgent");
 const {
   saveMessage,
   getRecentHistory,
@@ -211,6 +211,38 @@ function recentlyAckedAttachment(platform, senderId) {
   attachmentAckAt.set(key, Date.now());
   if (attachmentAckAt.size > 2000) attachmentAckAt.clear();
   return false;
+}
+
+// Generic once-per-window throttle keyed by platform+sender, used for the
+// "you're in the queue" acknowledgements so the customer isn't spammed.
+function makeThrottle(windowMs) {
+  const at = new Map();
+  return (platform, senderId) => {
+    const key = `${platform}:${senderId}`;
+    const last = at.get(key) || 0;
+    if (Date.now() - last < windowMs) return true;
+    at.set(key, Date.now());
+    if (at.size > 3000) at.clear();
+    return false;
+  };
+}
+// One team re-ping per thread per 10 min for repeated "I want a human" asks.
+const recentlyPingedTeam = makeThrottle(10 * 60 * 1000);
+// One gentle "the team has this" reassurance per thread per 10 min while paused.
+const recentlyReassuredPaused = makeThrottle(10 * 60 * 1000);
+
+// Does this message read as the customer explicitly asking to be put through to
+// a real person (as opposed to a normal question the bot should just answer)?
+function wantsHuman(text) {
+  const t = ` ${String(text || "").toLowerCase().replace(/[^a-z0-9\s']/g, " ").replace(/\s+/g, " ")} `;
+  return (
+    /\b(real|actual|live|proper)\s+(person|human|people|agent|rep|representative|staff|team member|member of staff)\b/.test(t) ||
+    /\b(speak|talk|chat|connect|transfer|put me|get me|pass me|hand me)\b[a-z' ]{0,40}\b(human|person|someone|somebody|agent|representative|rep|staff|team|operator|manager|consultant|advisor)\b/.test(t) ||
+    /\b(human|person|agent|representative|operator)\s+(please|now|asap|thanks|pls|thx)\b/.test(t) ||
+    /\bconnect (a|me (to|with) a) (human|person|real person)\b/.test(t) ||
+    /\b(not|no|dont want|don't want|stop) (a |the |talking to a )?(bot|robot|chatbot|ai|automated)\b/.test(t) ||
+    /\bi want (to speak|to talk|to chat) (to |with )?(a |an )?(human|person|someone|real person)\b/.test(t)
+  );
 }
 
 // Pull the image attachments off a Messenger/Instagram message and fetch each
@@ -466,10 +498,65 @@ async function handleMessagingEvent(platform, event) {
     senderId,
     resumeAfterMinutes: RESUME_AFTER_MIN,
   }).catch(() => false);
+
+  // -------- Explicit "put me through to a person" --------
+  // Handle this deterministically and the same way whether or not the thread is
+  // already paused or was already escalated: record the message, make sure the
+  // team is pinged (throttled so repeat asks don't spam), acknowledge the
+  // customer so they're never left on silence, and (re)start the pause so the
+  // team has a fresh window to pick it up.
+  if (wantsHuman(userText)) {
+    // History first (prior turns only), then record this message - flagForHuman
+    // appends the current message to the transcript itself.
+    const history = await getRecentHistory({ platform, senderId }).catch(() => []);
+    await saveMessage({ platform, senderId, role: "user", content: userText }).catch(
+      () => {}
+    );
+    const ping = !recentlyPingedTeam(platform, senderId);
+    await flagForHuman(
+      { platform, senderId, userText, history },
+      "Customer asked to speak to a human",
+      { alwaysNotify: ping }
+    ).catch((err) => console.error("flagForHuman (human request) failed", err));
+
+    if (ping || !recentlyReassuredPaused(platform, senderId)) {
+      const ack = ping
+        ? "No worries - I've let the GoBike team know you'd like to talk to a " +
+          "person, and someone will jump in here as soon as they can. You can " +
+          "also reach them directly at gobike@gobike.au."
+        : "You're still in the queue - the GoBike team will be with you as soon " +
+          "as they can. gobike@gobike.au reaches them too.";
+      await botSend({ recipientId: senderId, text: ack }).catch(() => {});
+      await saveMessage({
+        platform,
+        senderId,
+        role: "assistant",
+        content: ack,
+      }).catch(() => {});
+    }
+    return;
+  }
+
   if (paused) {
     await saveMessage({ platform, senderId, role: "user", content: userText }).catch(
       () => {}
     );
+    // Don't sit in dead silence while they wait - one gentle note per pause
+    // window that the team has the thread. The pause itself still stops the bot
+    // talking over whoever picks it up.
+    if (!recentlyReassuredPaused(platform, senderId)) {
+      const ack =
+        "Thanks for your patience - the GoBike team has this conversation and " +
+        "will reply here shortly. You can also email gobike@gobike.au if you'd " +
+        "like to reach them another way.";
+      await botSend({ recipientId: senderId, text: ack }).catch(() => {});
+      await saveMessage({
+        platform,
+        senderId,
+        role: "assistant",
+        content: ack,
+      }).catch(() => {});
+    }
     return;
   }
 
