@@ -38,19 +38,53 @@ app.set("trust proxy", 1);
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN;
 const APP_SECRET = process.env.META_APP_SECRET;
-// Our own Meta app id. Used to tell the bot's own message echoes apart from a
-// message a human sent from the Business Suite / Page inbox (which carries a
-// different app_id, often the inbox app id 26390203743090, sometimes none).
-const OUR_APP_ID = String(process.env.META_APP_ID || "");
+// Our own Meta app id (optional). Only used as a positive "this echo IS us"
+// check. Ignored unless it's a plain numeric id, so a stray space/quote in the
+// env var can't turn it into a footgun.
+const OUR_APP_ID = (() => {
+  const v = String(process.env.META_APP_ID || "").trim();
+  return /^\d{5,}$/.test(v) ? v : "";
+})();
 const PAGE_INBOX_APP_ID = "26390203743090";
 
-// True if this echo came from a human in the inbox (or any other app/tool),
-// not from our own Send API call.
+// Message ids the bot itself just sent, so we can recognise the echoes of our
+// own replies without depending on app_id (a wrong META_APP_ID must never make
+// the bot silence itself). Bounded FIFO-ish set.
+const ourSentMids = new Set();
+function rememberSent(mids) {
+  for (const m of mids || []) {
+    if (!m) continue;
+    ourSentMids.add(m);
+  }
+  if (ourSentMids.size > 3000) ourSentMids.clear();
+}
+// Send a bot message and remember its mid(s) as ours.
+async function botSend(args) {
+  const { sentMids } = (await sendTextMessage(args)) || {};
+  rememberSent(sentMids);
+  return sentMids;
+}
+
+// True if this Page-message echo is a human/automation replying from the
+// Business Suite inbox, not our own Send API call.
 function echoIsHumanTakeover(msg) {
   if (!msg || !msg.is_echo) return false;
-  const appId = String(msg.app_id || "");
-  if (OUR_APP_ID) return appId !== OUR_APP_ID; // precise: anything not us
-  return !appId || appId === PAGE_INBOX_APP_ID; // best-effort without META_APP_ID
+  if (msg.mid && ourSentMids.has(msg.mid)) return false; // echo of our own reply
+  const appId = String(msg.app_id || "").trim();
+  if (OUR_APP_ID && appId && appId === OUR_APP_ID) return false; // our app id
+  if (!appId || appId === PAGE_INBOX_APP_ID) return true; // inbox human
+  // Some other app_id. If META_APP_ID is set we know it isn't us -> a
+  // third-party tool or a Meta auto-reply / AI: log it and pause so we don't
+  // talk over it. If META_APP_ID isn't set we can't be sure, so don't risk
+  // silencing ourselves - assume it's our own send.
+  if (OUR_APP_ID) {
+    console.warn(
+      `[echo] Page message from an unrecognised app_id=${appId} on that thread. ` +
+        `If this is a Meta auto-reply/AI, turn it off in Business Suite so the bot handles it.`
+    );
+    return true;
+  }
+  return false;
 }
 
 // After the bot hands a thread to a human (or a team member replies from the
@@ -341,7 +375,7 @@ async function handleMessagingEvent(platform, event) {
       }
     }
     await sendMarkSeen(senderId).catch(() => {});
-    await sendTextMessage({ recipientId: senderId, text: ack }).catch(() => {});
+    await botSend({ recipientId: senderId, text: ack }).catch(() => {});
     await saveMessage({ platform, senderId, role: "assistant", content: ack }).catch(
       () => {}
     );
@@ -392,7 +426,7 @@ async function handleMessagingEvent(platform, event) {
       () => {}
     );
     if (botState.offlineMessage && !alreadyToldThem) {
-      await sendTextMessage({
+      await botSend({
         recipientId: senderId,
         text: botState.offlineMessage,
       }).catch(() => {});
@@ -433,7 +467,7 @@ async function handleMessagingEvent(platform, event) {
       replyContext,
     });
 
-    await sendTextMessage({ recipientId: senderId, text: replyText, quickReplies });
+    await botSend({ recipientId: senderId, text: replyText, quickReplies });
 
     await saveMessage({ platform, senderId, role: "user", content: userText });
     await saveMessage({
@@ -453,7 +487,7 @@ async function handleMessagingEvent(platform, event) {
     await saveMessage({ platform, senderId, role: "user", content: userText }).catch(
       () => {}
     );
-    await sendTextMessage({
+    await botSend({
       recipientId: senderId,
       text:
         "Sorry, something went wrong on our end just now — mind trying again in a moment? If it keeps happening, email gobike@gobike.au and we'll sort it out.",
