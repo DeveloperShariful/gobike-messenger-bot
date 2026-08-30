@@ -230,7 +230,10 @@
       </div>
       <div class="col">
         <div class="panel" style="margin-top:0">
-          <h2 id="threadTitle">Pick a customer</h2>
+          <h2>
+            <span id="threadTitle">Pick a customer</span>
+            <button class="act" id="clearMemBtn" hidden style="margin-left:auto">Clear memory</button>
+          </h2>
           <div class="thread" id="thread"><span class="muted">No conversation selected.</span></div>
         </div>
       </div>
@@ -497,13 +500,28 @@ async function loadSenders() {
     });
   } catch { box.innerHTML = errState("Couldn't load conversations."); }
 }
+let openThreadKey = null;
 async function openThread(platform, senderId) {
+  openThreadKey = { platform, senderId };
   $("#threadTitle").textContent = platform + " · " + senderId.slice(0, 18);
+  $("#clearMemBtn").hidden = false;
   try {
     const rows = await api("/thread?platform=" + encodeURIComponent(platform) + "&senderId=" + encodeURIComponent(senderId));
     $("#thread").innerHTML = rows.map((m) => `<div class="bubble ${m.role === "assistant" ? "assistant" : "user"}">${esc(m.content)}<div class="meta">${m.role} · ${ago(m.created_at)}</div></div>`).join("") || '<span class="muted">Empty.</span>';
   } catch { $("#thread").innerHTML = errState("Couldn't load this thread."); }
 }
+$("#clearMemBtn").onclick = async () => {
+  if (!openThreadKey) return;
+  if (!confirm("Wipe the bot's memory of this conversation? It won't remember anything the customer said before, next time they message. This can't be undone.")) return;
+  const b = $("#clearMemBtn"); b.disabled = true; b.textContent = "Clearing…";
+  try {
+    await api("/thread/clear", { method: "POST", body: JSON.stringify(openThreadKey) });
+    $("#thread").innerHTML = '<span class="muted">Memory cleared.</span>';
+    toast("Memory cleared");
+    loadSenders();
+  } catch { toast("Couldn't clear"); }
+  b.disabled = false; b.textContent = "Clear memory";
+};
 
 // ---- knowledge base ----
 async function loadKb() {

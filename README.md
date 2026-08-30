@@ -159,6 +159,10 @@ string `.env` / Render-এ `DATABASE_URL`-এ বসান — ব্যস।
   নতুন handoff হলে **Telegram group-এ alert** যায় (`TELEGRAM_BOT_TOKEN` +
   `TELEGRAM_CHAT_ID` সেট থাকলে; Setup ট্যাবে "Send test alert" বোতাম)।
 - **Conversations** — recent customer লিস্ট → ক্লিক করে পুরো চ্যাট দেখুন।
+  "Clear memory" বোতাম — ওই customer-এর বটের সব memory (history, pause, ad
+  referral, stashed image) মুছে দেয়। বট Messenger থেকে আলাদা, তাই customer chat
+  delete করলেও বট মনে রাখে — এই বোতাম দিয়ে wipe করা যায় (privacy request / fresh
+  start)।
 - **Knowledge base** — "Extra knowledge" box-এ যা লেখেন সেটা বট authoritative ধরে
   (correction, current promo, one-off নোট)। নিচে স্টোর থেকে আসা live catalog দেখা
   যায় + "Refresh from store" বাটন।
