@@ -10,6 +10,8 @@ const {
   getSetting,
   pauseThread,
   isThreadPaused,
+  saveReferral,
+  getReferral,
   runMigrations,
 } = require("./lib/db");
 const {
@@ -143,6 +145,17 @@ function alreadyProcessed(id) {
   return false;
 }
 
+// Don't spam the "I can't open attachments" line when a customer sends a burst
+// of photos. One ack per thread per 10 minutes is plenty.
+const attachmentAckAt = new Map();
+function recentlyAckedAttachment(senderId) {
+  const last = attachmentAckAt.get(senderId) || 0;
+  if (Date.now() - last < 10 * 60 * 1000) return true;
+  attachmentAckAt.set(senderId, Date.now());
+  if (attachmentAckAt.size > 2000) attachmentAckAt.clear();
+  return false;
+}
+
 // -------- Incoming messages (Messenger + Instagram share this shape) --------
 app.post("/webhook", webhookLimiter, verifySignature, async (req, res) => {
   // Ack immediately — Meta expects a fast 200, we do the real work after.
@@ -219,8 +232,61 @@ async function handleMessagingEvent(platform, event) {
   const senderId = event.sender && event.sender.id;
   if (!senderId) return;
 
-  // Skip delivery/read receipts and anything without actual text
-  // (stickers/attachments-only for now).
+  // -------- Click-to-Messenger ad referral --------
+  // Meta sends this when a customer clicks a Facebook/Instagram ad or an
+  // m.me/?ref= link. It can arrive on its own (returning customer) or attached
+  // to their first message (new customer). Stash it so the bot knows which
+  // product/offer they're asking about.
+  const referral = event.referral || (event.message && event.message.referral);
+  if (referral) {
+    const ctx = referral.ads_context_data || {};
+    await saveReferral({
+      platform,
+      senderId,
+      source: referral.source || "",
+      ref: referral.ref || "",
+      adId: referral.ad_id || "",
+      adTitle: ctx.ad_title || "",
+    }).catch((err) => console.error("saveReferral failed", err));
+  }
+
+  // A referral with no message of its own (returning customer clicked an ad),
+  // or a message we can't read (attachment / sticker only). In both cases send
+  // one short acknowledgement so the customer isn't left on read - unless the
+  // bot is switched off or a human has the thread.
+  const isReferralOnly = referral && !event.message;
+  const isAttachmentOnly =
+    event.message &&
+    (typeof event.message.text !== "string" || !event.message.text.trim());
+
+  if (isReferralOnly || isAttachmentOnly) {
+    const mid = isReferralOnly
+      ? "ref:" + senderId + ":" + (referral.ad_id || referral.ref || Date.now())
+      : event.message.mid;
+    if (alreadyProcessed(mid)) return;
+    if (isAttachmentOnly && !event.message.attachments) return; // delivery/read receipt
+    if (isAttachmentOnly && recentlyAckedAttachment(senderId)) return;
+
+    const st = await getBotState();
+    if (!st.enabled) return;
+    if (await isThreadPaused({ platform, senderId, resumeAfterMinutes: RESUME_AFTER_MIN }).catch(() => false)) {
+      return;
+    }
+
+    const ack = isReferralOnly
+      ? "Hey! Thanks for checking out GoBike - what can I help you with?"
+      : "Thanks for sending that through! I can't open attachments here - pop your " +
+        "question in a message and I'll help. For a warranty claim, the form at " +
+        "gobike.au/warranty takes photos and video.";
+    await sendMarkSeen(senderId).catch(() => {});
+    await sendTextMessage({ recipientId: senderId, text: ack }).catch(() => {});
+    await saveMessage({ platform, senderId, role: "assistant", content: ack }).catch(
+      () => {}
+    );
+    return;
+  }
+
+  // Skip anything else without a readable message (delivery/read receipts).
   if (!event.message || typeof event.message.text !== "string") return;
 
   const messageId = event.message.mid;
@@ -276,11 +342,13 @@ async function handleMessagingEvent(platform, event) {
 
   try {
     const history = await getRecentHistory({ platform, senderId });
+    const adContext = await getReferral({ platform, senderId }).catch(() => null);
     const { replyText, escalated } = await generateReply({
       platform,
       senderId,
       userText,
       history,
+      adContext,
     });
 
     await sendTextMessage({ recipientId: senderId, text: replyText });

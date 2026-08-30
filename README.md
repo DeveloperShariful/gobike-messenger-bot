@@ -41,8 +41,11 @@ handoff-এর জন্য নোট রেখে দেয়।
 1. Meta Dashboard → **Messenger → Settings → Webhooks** → "Add Callback URL"।
 2. Callback URL: `https://gobike-messenger-bot.onrender.com/webhook`
 3. Verify Token: আপনার `META_VERIFY_TOKEN`।
-4. Subscribe: `messages`, `messaging_postbacks`, `message_echoes`।
-   (`message_echoes` = team Business Suite থেকে reply দিলে বট বুঝে চুপ হয়ে যায়।)
+4. Subscribe: `messages`, `messaging_postbacks`, `message_echoes`,
+   `messaging_referrals`।
+   (`message_echoes` = team Business Suite থেকে reply দিলে বট বুঝে চুপ হয়ে যায়।
+   `messaging_referrals` = click-to-Messenger ad থেকে customer এলে বট বুঝে কোন ad/
+   offer, "this bike" ঠিকভাবে ধরে।)
 5. Instagram-এর জন্যও `messages` field-এ subscribe করুন।
 
 ### App Review

@@ -40,6 +40,21 @@ CREATE TABLE IF NOT EXISTS bot_thread_pauses (
   PRIMARY KEY (platform, sender_id)
 );
 
+-- Click-to-Messenger ad context. When a customer arrives by clicking a
+-- Facebook/Instagram ad, Meta sends a referral (ad id, ref param, ad title).
+-- We stash the latest one per thread so the bot knows which product/offer the
+-- customer is asking about ("what's the weight limit for THIS bike").
+CREATE TABLE IF NOT EXISTS bot_thread_referrals (
+  platform    TEXT NOT NULL,
+  sender_id   TEXT NOT NULL,
+  source      TEXT NOT NULL DEFAULT '',   -- ADS / SHORTLINK / CUSTOMER_CHAT_PLUGIN
+  ref         TEXT NOT NULL DEFAULT '',   -- your own ref param on the ad link
+  ad_id       TEXT NOT NULL DEFAULT '',
+  ad_title    TEXT NOT NULL DEFAULT '',   -- ads_context_data.ad_title, when Meta sends it
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (platform, sender_id)
+);
+
 -- Key/value settings the owner controls from the dashboard: the global
 -- on/off switch, the extra knowledge-base text, and the message sent while
 -- the bot is switched off.
